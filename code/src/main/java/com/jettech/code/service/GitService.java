@@ -17,16 +17,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Service
 public class GitService {
@@ -174,19 +174,26 @@ public class GitService {
         String localPath = service.getLocalPath();
         File repoDir = (localPath != null && !localPath.isEmpty()) ? new File(localPath) : null;
         
-        if (repoDir == null || !repoDir.exists()) {
+        boolean needClone = repoDir == null || !repoDir.exists() || !new File(repoDir, ".git").exists();
+        
+        if (needClone) {
             Path reposPath = workspaceConfig.getReposPath();
             String repoName = extractProjectName(service.getGitUrl());
             localPath = reposPath.resolve(repoName).toString();
             repoDir = new File(localPath);
             
-            Git.cloneRepository()
+            if (repoDir.exists()) {
+                deleteDirectory(repoDir);
+            }
+            
+            Git cloneGit = Git.cloneRepository()
                     .setURI(service.getGitUrl())
                     .setDirectory(repoDir)
                     .setDepth(shallowDepth)
                     .setTimeout(timeout)
                     .setProgressMonitor(new TextProgressMonitor(new PrintWriter(System.out)))
                     .call();
+            cloneGit.close();
             
             service.setLocalPath(localPath);
         }
@@ -205,6 +212,20 @@ public class GitService {
         git.close();
         serviceMapper.update(service);
         return service;
+    }
+    
+    private void deleteDirectory(File directory) {
+        File[] files = directory.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    deleteDirectory(file);
+                } else {
+                    file.delete();
+                }
+            }
+        }
+        directory.delete();
     }
 
     private <T> T executeWithRetry(GitOperation<T> operation, String operationName) throws Exception {
@@ -238,6 +259,159 @@ public class GitService {
         String[] parts = gitUrl.split("/");
         String lastPart = parts[parts.length - 1];
         return lastPart.endsWith(".git") ? lastPart.substring(0, lastPart.length() - 4) : lastPart;
+    }
+
+    public List<Map<String, Object>> getFileTree(Long serviceId, String path) throws Exception {
+        ServiceEntity service = serviceMapper.findById(serviceId);
+        if (service == null) {
+            throw new IllegalArgumentException("Service not found");
+        }
+
+        String localPath = service.getLocalPath();
+        if (localPath == null || localPath.isEmpty()) {
+            throw new IllegalArgumentException("Service local path not configured");
+        }
+
+        File baseDir = new File(localPath);
+        File targetDir = path == null || path.isEmpty() ? baseDir : new File(baseDir, path);
+
+        if (!targetDir.exists() || !targetDir.isDirectory()) {
+            throw new IllegalArgumentException("Directory not found: " + path);
+        }
+
+        File[] files = targetDir.listFiles();
+        if (files == null) {
+            return new ArrayList<>();
+        }
+
+        List<Map<String, Object>> fileTree = new ArrayList<>();
+        for (File file : files) {
+            String name = file.getName();
+            if (name.equals(".git")) {
+                continue;
+            }
+
+            Map<String, Object> node = new HashMap<>();
+            node.put("name", name);
+            String relativePath = path == null || path.isEmpty() ? name : path + "/" + name;
+            node.put("path", relativePath);
+            node.put("type", file.isDirectory() ? "directory" : "file");
+
+            if (file.isDirectory()) {
+                node.put("children", getFileTree(serviceId, relativePath));
+            }
+
+            fileTree.add(node);
+        }
+
+        fileTree.sort((a, b) -> {
+            boolean aIsDir = a.get("type").equals("directory");
+            boolean bIsDir = b.get("type").equals("directory");
+            if (aIsDir && !bIsDir) return -1;
+            if (!aIsDir && bIsDir) return 1;
+            return ((String) a.get("name")).compareToIgnoreCase((String) b.get("name"));
+        });
+
+        return fileTree;
+    }
+
+    public Map<String, Object> getFileContent(Long serviceId, String path) throws Exception {
+        ServiceEntity service = serviceMapper.findById(serviceId);
+        if (service == null) {
+            throw new IllegalArgumentException("Service not found");
+        }
+
+        String localPath = service.getLocalPath();
+        if (localPath == null || localPath.isEmpty()) {
+            throw new IllegalArgumentException("Service local path not configured");
+        }
+
+        File file = new File(localPath, path);
+        if (!file.exists() || !file.isFile()) {
+            throw new IllegalArgumentException("File not found: " + path);
+        }
+
+        String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+        String language = detectLanguage(file.getName());
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("path", path);
+        result.put("content", content);
+        result.put("language", language);
+        return result;
+    }
+
+    public List<Map<String, String>> getServiceBranches(Long serviceId) throws Exception {
+        ServiceEntity service = serviceMapper.findById(serviceId);
+        if (service == null) {
+            throw new IllegalArgumentException("Service not found");
+        }
+
+        String localPath = service.getLocalPath();
+        if (localPath == null || localPath.isEmpty()) {
+            throw new IllegalArgumentException("Service local path not configured");
+        }
+
+        Git git = Git.open(new File(localPath));
+        Collection<Ref> refs = git.branchList().call();
+
+        List<Map<String, String>> branches = refs.stream()
+                .map(ref -> {
+                    Map<String, String> branch = new HashMap<>();
+                    branch.put("name", ref.getName().replace("refs/heads/", ""));
+                    branch.put("objectId", ref.getObjectId().getName());
+                    return branch;
+                })
+                .collect(Collectors.toList());
+
+        git.close();
+        return branches;
+    }
+
+    public void checkoutServiceBranch(Long serviceId, String branchName) throws Exception {
+        ServiceEntity service = serviceMapper.findById(serviceId);
+        if (service == null) {
+            throw new IllegalArgumentException("Service not found");
+        }
+
+        String localPath = service.getLocalPath();
+        if (localPath == null || localPath.isEmpty()) {
+            throw new IllegalArgumentException("Service local path not configured");
+        }
+
+        Git git = Git.open(new File(localPath));
+        git.checkout().setName(branchName).call();
+
+        String lastCommit = git.log().setMaxCount(1).call().iterator().next().getName();
+        service.setCurrentBranch(branchName);
+        service.setLastCommit(lastCommit);
+
+        git.close();
+        serviceMapper.update(service);
+    }
+
+    private String detectLanguage(String fileName) {
+        if (fileName.endsWith(".java")) return "java";
+        if (fileName.endsWith(".ts") || fileName.endsWith(".tsx")) return "typescript";
+        if (fileName.endsWith(".js") || fileName.endsWith(".jsx")) return "javascript";
+        if (fileName.endsWith(".vue")) return "vue";
+        if (fileName.endsWith(".py")) return "python";
+        if (fileName.endsWith(".go")) return "go";
+        if (fileName.endsWith(".rs")) return "rust";
+        if (fileName.endsWith(".c")) return "c";
+        if (fileName.endsWith(".cpp") || fileName.endsWith(".cc")) return "cpp";
+        if (fileName.endsWith(".h")) return "c";
+        if (fileName.endsWith(".json")) return "json";
+        if (fileName.endsWith(".xml")) return "xml";
+        if (fileName.endsWith(".yaml") || fileName.endsWith(".yml")) return "yaml";
+        if (fileName.endsWith(".md")) return "markdown";
+        if (fileName.endsWith(".html")) return "html";
+        if (fileName.endsWith(".css")) return "css";
+        if (fileName.endsWith(".scss") || fileName.endsWith(".sass")) return "scss";
+        if (fileName.endsWith(".sql")) return "sql";
+        if (fileName.endsWith(".sh")) return "shell";
+        if (fileName.endsWith(".properties")) return "properties";
+        return "text";
     }
 
     @FunctionalInterface

@@ -6,7 +6,10 @@ import type {
   CreateApplicationRequest,
   CreateServiceRequest,
   CreateVersionRequest,
-  ApiResponse 
+  ApiResponse,
+  Branch,
+  FileNode,
+  CodeContent
 } from '@/types'
 
 export const applicationApi = {
@@ -58,6 +61,28 @@ export const serviceApi = {
 
   pull(id: number) {
     return api.post<ApiResponse<ServiceEntity>>(`/services/${id}/pull`)
+  },
+
+  getBranches(serviceId: number) {
+    return api.get<ApiResponse<Branch[]>>(`/services/${serviceId}/branches`)
+  },
+
+  checkoutBranch(serviceId: number, branch: string) {
+    return api.post<ApiResponse<void>>(`/services/${serviceId}/checkout`, null, {
+      params: { branch }
+    })
+  },
+
+  getFileTree(serviceId: number, path?: string) {
+    return api.get<ApiResponse<FileNode[]>>(`/services/${serviceId}/files`, {
+      params: { path }
+    })
+  },
+
+  getFileContent(serviceId: number, path: string) {
+    return api.get<ApiResponse<CodeContent>>(`/services/${serviceId}/content`, {
+      params: { path }
+    })
   }
 }
 

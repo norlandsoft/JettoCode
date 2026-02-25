@@ -43,7 +43,7 @@ const activeTab = ref('info')
 
 const tabs = [
   { key: 'info', label: '服务信息', icon: InfoCircleOutlined },
-  { key: 'code', label: '代码浏览', icon: FolderOutlined },
+  { key: 'code', label: '代码查看', icon: FolderOutlined },
   { key: 'architecture', label: '项目架构', icon: ApartmentOutlined },
   { key: 'flow', label: '业务流程', icon: ShareAltOutlined },
   { key: 'call-chain', label: '调用链路', icon: NodeIndexOutlined },

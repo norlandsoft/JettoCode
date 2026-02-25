@@ -1,6 +1,6 @@
 <template>
   <div class="layout-container">
-    <aside class="sidebar">
+    <aside class="sidebar" :class="{ collapsed: isCollapsed }">
       <div class="sidebar-header">
         <div class="logo-container">
           <div class="logo-icon">
@@ -25,11 +25,11 @@
       
       <nav class="sidebar-nav">
         <div class="nav-section">
-          <span class="nav-section-title">导航</span>
           <a-menu
             v-model:selectedKeys="selectedKeys"
             mode="inline"
             class="sidebar-menu"
+            :inline-collapsed="isCollapsed"
             @click="handleMenuClick"
           >
             <a-menu-item key="/applications" class="nav-item">
@@ -47,6 +47,10 @@
           <span class="status-dot"></span>
           <span class="status-text">系统运行中</span>
         </div>
+        <button class="collapse-btn" @click="toggleCollapse" :title="isCollapsed ? '展开' : '折叠'">
+          <MenuFoldOutlined v-if="!isCollapsed" />
+          <MenuUnfoldOutlined v-else />
+        </button>
       </div>
     </aside>
     
@@ -61,12 +65,13 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { AppstoreOutlined } from '@ant-design/icons-vue'
+import { AppstoreOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
 
 const selectedKeys = ref<string[]>(['/applications'])
+const isCollapsed = ref(false)
 
 const activeMenu = computed(() => {
   const path = route.path
@@ -83,6 +88,10 @@ watch(activeMenu, (val) => {
 const handleMenuClick = (info: { key: string | number }) => {
   router.push(String(info.key))
 }
+
+const toggleCollapse = () => {
+  isCollapsed.value = !isCollapsed.value
+}
 </script>
 
 <style scoped>
@@ -95,28 +104,76 @@ const handleMenuClick = (info: { key: string | number }) => {
 }
 
 .sidebar {
-  width: 240px;
+  width: 220px;
   display: flex;
   flex-direction: column;
   background: var(--color-bg-secondary);
   border-right: 1px solid var(--color-border);
   position: relative;
   z-index: 100;
+  transition: width var(--transition-normal);
+}
+
+.sidebar.collapsed {
+  width: 72px;
+}
+
+.sidebar.collapsed .logo-text,
+.sidebar.collapsed .status-text {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-header {
+  width: 72px;
+}
+
+.sidebar.collapsed .sidebar-nav {
+  padding: 16px 8px 16px 16px;
+}
+
+.sidebar.collapsed .sidebar-menu :deep(.ant-menu-item) {
+  width: 40px;
+  height: 40px;
+  padding: 0 !important;
+  margin: 0 0 4px 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-menu :deep(.ant-menu-item .anticon) {
+  margin-right: 0 !important;
+}
+
+.sidebar.collapsed .sidebar-menu :deep(.ant-menu-item span:not(.anticon)) {
+  display: none !important;
+}
+
+.sidebar.collapsed .sidebar-footer {
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.sidebar.collapsed .status-indicator {
+  justify-content: center;
+  padding: var(--spacing-sm);
 }
 
 .sidebar-header {
+  width: 220px;
   height: 72px;
-  display: flex;
-  align-items: center;
-  padding: 0 var(--spacing-lg);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
+  position: relative;
 }
 
 .logo-container {
+  position: absolute;
+  top: 18px;
+  left: 18px;
   display: flex;
-  align-items: center;
-  gap: var(--spacing-base);
+  align-items: flex-start;
 }
 
 .logo-icon {
@@ -136,7 +193,8 @@ const handleMenuClick = (info: { key: string | number }) => {
 .logo-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  margin-left: 12px;
+  margin-top: -4px;
 }
 
 .logo-title {
@@ -153,23 +211,12 @@ const handleMenuClick = (info: { key: string | number }) => {
 
 .sidebar-nav {
   flex: 1;
-  padding: var(--spacing-base);
-  overflow-y: auto;
+  padding: 16px;
+  overflow: hidden;
 }
 
 .nav-section {
   margin-bottom: var(--spacing-lg);
-}
-
-.nav-section-title {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 0 var(--spacing-base);
-  margin-bottom: var(--spacing-sm);
 }
 
 .sidebar-menu {
@@ -178,14 +225,17 @@ const handleMenuClick = (info: { key: string | number }) => {
 }
 
 .sidebar-menu :deep(.ant-menu-item) {
-  margin: 2px 0 !important;
-  padding: 10px 12px !important;
-  height: auto !important;
-  line-height: 1.4 !important;
+  width: 188px;
+  height: 40px;
+  margin: 0 0 4px 0 !important;
+  padding: 0 12px !important;
+  line-height: 40px !important;
   border-radius: var(--radius-md) !important;
   color: var(--color-text-secondary) !important;
   background: transparent !important;
   transition: all var(--transition-fast) !important;
+  display: flex;
+  align-items: center;
 }
 
 .sidebar-menu :deep(.ant-menu-item:hover) {
@@ -219,6 +269,31 @@ const handleMenuClick = (info: { key: string | number }) => {
 .sidebar-footer {
   padding: var(--spacing-base);
   border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+.collapse-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.collapse-btn:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-hover);
 }
 
 .status-indicator {
@@ -261,25 +336,44 @@ const handleMenuClick = (info: { key: string | number }) => {
 
 @media (max-width: 768px) {
   .sidebar {
-    width: 64px;
+    width: 72px;
   }
   
-  .logo-text,
-  .nav-section-title,
-  .sidebar-menu :deep(.ant-menu-item span),
-  .status-text {
+  .sidebar .logo-text,
+  .sidebar .status-text {
     display: none;
   }
   
-  .logo-container {
+  .sidebar-nav {
+    padding: 16px 8px 16px 16px;
+    overflow: hidden;
+  }
+  
+  .sidebar-menu :deep(.ant-menu-item) {
+    width: 40px;
+    height: 40px;
+    padding: 0 !important;
+    margin: 0 0 4px 0 !important;
+    display: flex;
+    align-items: center;
     justify-content: center;
   }
   
-  .sidebar-footer {
-    padding: var(--spacing-sm);
+  .sidebar-menu :deep(.ant-menu-item .anticon) {
+    margin-right: 0 !important;
   }
   
-  .status-indicator {
+  .sidebar-menu :deep(.ant-menu-item span:not(.anticon)) {
+    display: none !important;
+  }
+  
+  .sidebar-footer {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+  
+  .sidebar .status-indicator {
     justify-content: center;
     padding: var(--spacing-sm);
   }

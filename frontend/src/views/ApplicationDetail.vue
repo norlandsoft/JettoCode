@@ -23,7 +23,9 @@
       </div>
     </div>
 
-    <router-view :application-id="applicationId" />
+    <div class="detail-content">
+      <router-view :application-id="applicationId" />
+    </div>
 
     <a-modal
       v-model:open="showAddServiceModal"
@@ -213,6 +215,11 @@ onMounted(() => {
   background: var(--color-bg-secondary);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
+}
+
+.detail-content {
+  flex: 1;
+  overflow: hidden;
 }
 
 .header-left {
