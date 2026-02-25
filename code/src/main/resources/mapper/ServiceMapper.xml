@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jettech.code.mapper.ServiceMapper">
+    <resultMap id="ServiceMap" type="com.jettech.code.entity.ServiceEntity">
+        <id property="id" column="id"/>
+        <result property="applicationId" column="application_id"/>
+        <result property="name" column="name"/>
+        <result property="gitUrl" column="git_url"/>
+        <result property="localPath" column="local_path"/>
+        <result property="currentBranch" column="current_branch"/>
+        <result property="lastCommit" column="last_commit"/>
+        <result property="description" column="description"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findByApplicationId" resultMap="ServiceMap">
+        SELECT * FROM service WHERE application_id = #{applicationId} ORDER BY created_at DESC
+    </select>
+
+    <select id="findById" resultMap="ServiceMap">
+        SELECT * FROM service WHERE id = #{id}
+    </select>
+
+    <insert id="insert" parameterType="com.jettech.code.entity.ServiceEntity" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO service (application_id, name, git_url, local_path, current_branch, last_commit, description, created_at, updated_at)
+        VALUES (#{applicationId}, #{name}, #{gitUrl}, #{localPath}, #{currentBranch}, #{lastCommit}, #{description}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <update id="update" parameterType="com.jettech.code.entity.ServiceEntity">
+        UPDATE service
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="gitUrl != null">git_url = #{gitUrl},</if>
+            <if test="localPath != null">local_path = #{localPath},</if>
+            <if test="currentBranch != null">current_branch = #{currentBranch},</if>
+            <if test="lastCommit != null">last_commit = #{lastCommit},</if>
+            <if test="description != null">description = #{description},</if>
+            updated_at = #{updatedAt}
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM service WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteByApplicationId">
+        DELETE FROM service WHERE application_id = #{applicationId}
+    </delete>
+</mapper>

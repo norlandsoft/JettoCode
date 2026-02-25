@@ -1,0 +1,3 @@
+             Intelligent Code Analysis Platform             
+
+  :: Spring Boot ${spring-boot.version} :: Java ${java.version}
