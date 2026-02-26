@@ -49,6 +49,13 @@
         ORDER BY s.created_at DESC LIMIT 1
     </select>
 
+    <select id="findByApplicationId" resultMap="CodeQualityScanMap">
+        SELECT s.* FROM code_quality_scan s
+        INNER JOIN service sv ON s.service_id = sv.id
+        WHERE sv.application_id = #{applicationId}
+        ORDER BY s.created_at DESC
+    </select>
+
     <select id="countByServiceIdAndStatus" resultType="int">
         SELECT COUNT(*) FROM code_quality_scan WHERE service_id = #{serviceId} AND status = #{status}
     </select>

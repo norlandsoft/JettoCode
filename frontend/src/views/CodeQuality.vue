@@ -1,53 +1,142 @@
 <template>
   <div class="code-quality">
     <div class="page-header">
-      <h1>代码质量</h1>
-      <p>代码安全、可靠性、可维护性检查</p>
+      <div class="header-left">
+        <h1>代码质量</h1>
+        <p>代码安全、可靠性、可维护性检查</p>
+      </div>
     </div>
 
     <div class="content">
-      <div class="service-selector">
-        <label>选择应用系统：</label>
-        <a-select
-          v-model:value="selectedApplicationId"
-          style="width: 300px"
-          placeholder="请选择应用系统"
-          @change="handleApplicationChange"
-        >
-          <a-select-option v-for="app in applications" :key="app.id" :value="app.id">
-            {{ app.name }}
-          </a-select-option>
-        </a-select>
-      </div>
+      <div class="operation-panel">
+        <div class="panel-row">
+          <div class="form-item">
+            <label>选择系统</label>
+            <a-select
+              v-model:value="selectedApplicationId"
+              style="width: 240px"
+              placeholder="请选择应用系统"
+              @change="handleApplicationChange"
+            >
+              <a-select-option v-for="app in applications" :key="app.id" :value="app.id">
+                {{ app.name }}
+              </a-select-option>
+            </a-select>
+          </div>
 
-      <div v-if="selectedApplicationId" class="scan-section">
-        <div class="section-header">
-          <h2>质量扫描</h2>
-          <button class="btn btn-primary" @click="showScanModal = true" :disabled="loadingServices || isScanning">
+          <div class="form-item">
+            <label>扫描内容</label>
+            <a-select
+              v-model:value="selectedServiceIds"
+              mode="multiple"
+              style="width: 360px"
+              placeholder="请选择要扫描的服务"
+              :disabled="!selectedApplicationId"
+              :loading="loadingServices"
+              :options="serviceOptions"
+            />
+          </div>
+
+          <button
+            class="btn btn-primary scan-btn"
+            :disabled="!selectedApplicationId || selectedServiceIds.length === 0 || isScanning"
+            @click="handleScan"
+          >
             <ScanOutlined />
-            {{ isScanning ? '扫描中...' : '开始扫描' }}
+            <span>{{ isScanning ? '扫描中...' : '执行扫描' }}</span>
           </button>
         </div>
+      </div>
 
-        <div v-if="latestScan" class="scan-summary">
+      <div class="history-section">
+        <div class="section-header">
+          <h2>扫描历史</h2>
+          <span class="record-count" v-if="scanHistory.length > 0">共 {{ scanHistory.length }} 条记录</span>
+        </div>
+
+        <div class="history-list" v-if="!loadingHistory && scanHistory.length > 0">
+          <div
+            v-for="scan in scanHistory"
+            :key="scan.id"
+            class="history-item"
+            @click="viewScanReport(scan)"
+          >
+            <div class="item-left">
+              <div class="scan-service">{{ getServiceName(scan.serviceId) }}</div>
+              <div class="scan-time">{{ formatDateTime(scan.completedAt || scan.startedAt) }}</div>
+            </div>
+            <div class="item-center">
+              <div class="score-info">
+                <span class="score-label">质量评分</span>
+                <span class="score-value" :class="getScoreClass(scan.qualityScore)">
+                  {{ Math.round(scan.qualityScore || 0) }}
+                </span>
+              </div>
+              <div class="issue-summary">
+                <span class="issue-item security" v-if="scan.securityIssues">
+                  <span class="dot"></span>
+                  安全 {{ scan.securityIssues }}
+                </span>
+                <span class="issue-item reliability" v-if="scan.reliabilityIssues">
+                  <span class="dot"></span>
+                  可靠性 {{ scan.reliabilityIssues }}
+                </span>
+                <span class="issue-item maintainability" v-if="scan.maintainabilityIssues">
+                  <span class="dot"></span>
+                  可维护性 {{ scan.maintainabilityIssues }}
+                </span>
+              </div>
+            </div>
+            <div class="item-right">
+              <span :class="['status-badge', scan.status.toLowerCase()]">
+                {{ getScanStatusText(scan.status) }}
+              </span>
+              <RightOutlined class="arrow-icon" />
+            </div>
+          </div>
+        </div>
+
+        <div class="empty-state" v-if="!loadingHistory && scanHistory.length === 0">
+          <FileSearchOutlined class="empty-icon" />
+          <p v-if="!selectedApplicationId">请先选择应用系统</p>
+          <p v-else>暂无扫描记录</p>
+        </div>
+
+        <div class="loading-state" v-if="loadingHistory">
+          <a-spin />
+          <span>加载中...</span>
+        </div>
+      </div>
+    </div>
+
+    <a-modal
+      v-model:open="showReportModal"
+      :title="reportTitle"
+      width="90%"
+      style="top: 20px"
+      :footer="null"
+      @cancel="closeReport"
+    >
+      <div class="report-content" v-if="currentScan">
+        <div class="report-summary">
           <div class="summary-card score-card">
             <div class="card-title">质量评分</div>
             <div class="card-content">
               <div class="score-circle">
-                <a-progress type="circle" :percent="Math.round(latestScan.qualityScore || 0)" :width="80" />
+                <a-progress type="circle" :percent="Math.round(currentScan.qualityScore || 0)" :width="80" />
               </div>
               <div class="score-breakdown">
                 <div class="score-item">
                   <span class="score-label">安全</span>
-                  <span class="score-value">{{ Math.round(latestScan.securityScore || 0) }}</span>
+                  <span class="score-value">{{ Math.round(currentScan.securityScore || 0) }}</span>
                 </div>
                 <div class="score-item">
                   <span class="score-label">可靠性</span>
-                  <span class="score-value">{{ Math.round(latestScan.reliabilityScore || 0) }}</span>
+                  <span class="score-value">{{ Math.round(currentScan.reliabilityScore || 0) }}</span>
                 </div>
                 <div class="score-item">
                   <span class="score-label">可维护性</span>
-                  <span class="score-value">{{ Math.round(latestScan.maintainabilityScore || 0) }}</span>
+                  <span class="score-value">{{ Math.round(currentScan.maintainabilityScore || 0) }}</span>
                 </div>
               </div>
             </div>
@@ -58,19 +147,19 @@
             <div class="card-content category-stats">
               <div class="stat-item security">
                 <span class="stat-label">安全问题</span>
-                <span class="stat-value">{{ latestScan.securityIssues }}</span>
+                <span class="stat-value">{{ currentScan.securityIssues }}</span>
               </div>
               <div class="stat-item reliability">
                 <span class="stat-label">可靠性问题</span>
-                <span class="stat-value">{{ latestScan.reliabilityIssues }}</span>
+                <span class="stat-value">{{ currentScan.reliabilityIssues }}</span>
               </div>
               <div class="stat-item maintainability">
                 <span class="stat-label">可维护性问题</span>
-                <span class="stat-value">{{ latestScan.maintainabilityIssues }}</span>
+                <span class="stat-value">{{ currentScan.maintainabilityIssues }}</span>
               </div>
               <div class="stat-item smell">
                 <span class="stat-label">代码异味</span>
-                <span class="stat-value">{{ latestScan.codeSmellIssues }}</span>
+                <span class="stat-value">{{ currentScan.codeSmellIssues }}</span>
               </div>
             </div>
           </div>
@@ -80,52 +169,31 @@
             <div class="card-content severity-stats">
               <div class="stat-item blocker">
                 <span class="stat-label">阻塞</span>
-                <span class="stat-value">{{ latestScan.blockerCount }}</span>
+                <span class="stat-value">{{ currentScan.blockerCount }}</span>
               </div>
               <div class="stat-item critical">
                 <span class="stat-label">严重</span>
-                <span class="stat-value">{{ latestScan.criticalCount }}</span>
+                <span class="stat-value">{{ currentScan.criticalCount }}</span>
               </div>
               <div class="stat-item major">
                 <span class="stat-label">主要</span>
-                <span class="stat-value">{{ latestScan.majorCount }}</span>
+                <span class="stat-value">{{ currentScan.majorCount }}</span>
               </div>
               <div class="stat-item minor">
                 <span class="stat-label">次要</span>
-                <span class="stat-value">{{ latestScan.minorCount }}</span>
+                <span class="stat-value">{{ currentScan.minorCount }}</span>
               </div>
               <div class="stat-item info">
                 <span class="stat-label">提示</span>
-                <span class="stat-value">{{ latestScan.infoCount }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="summary-card">
-            <div class="card-title">扫描信息</div>
-            <div class="card-content">
-              <div class="stat-item">
-                <span class="stat-label">扫描状态</span>
-                <span :class="['stat-value', latestScan.status === 'IN_PROGRESS' ? 'scanning' : 'status-' + latestScan.status.toLowerCase()]">
-                  {{ getScanStatusText(latestScan.status) }}
-                </span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">扫描时间</span>
-                <span class="stat-value">{{ formatDateTime(latestScan.completedAt) }}</span>
+                <span class="stat-value">{{ currentScan.infoCount }}</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div v-else class="no-scan">
-          <FileSearchOutlined class="empty-icon" />
-          <p>暂无扫描记录，点击"开始扫描"进行代码质量检查</p>
-        </div>
-
-        <div v-if="latestScan && latestScan.status === 'COMPLETED' && issues.length > 0" class="issues-section">
+        <div class="issues-section" v-if="issues.length > 0">
           <div class="section-header">
-            <h2>问题列表</h2>
+            <h3>问题列表</h3>
             <div class="filter-group">
               <a-select v-model:value="categoryFilter" style="width: 150px" placeholder="问题分类" allowClear>
                 <a-select-option value="SECURITY">安全问题</a-select-option>
@@ -168,63 +236,54 @@
             </div>
           </div>
         </div>
-      </div>
-    </div>
 
-    <a-modal
-      v-model:open="showScanModal"
-      title="选择扫描服务"
-      width="500px"
-      @ok="handleScan"
-      @cancel="cancelScan"
-      :confirmLoading="scanning"
-      okText="开始扫描"
-      cancelText="取消"
-    >
-      <div v-if="loadingServices" class="loading-container">
-        <a-spin />
-      </div>
-      <div v-else-if="applicationServices.length === 0" class="no-data">
-        该应用下暂无服务
-      </div>
-      <div v-else class="service-list">
-        <a-checkbox-group v-model:value="selectedServiceIds" style="width: 100%">
-          <div v-for="service in applicationServices" :key="service.id" class="service-item">
-            <a-checkbox :value="service.id">
-              {{ service.name }}
-            </a-checkbox>
-          </div>
-        </a-checkbox-group>
+        <div class="no-issues" v-else-if="currentScan.status === 'COMPLETED'">
+          <CheckCircleOutlined class="success-icon" />
+          <p>扫描完成，未发现问题</p>
+        </div>
       </div>
     </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import type { Application, ServiceEntity, CodeQualityScan, CodeQualityIssue } from '@/types'
 import { applicationApi, serviceApi, codeQualityApi } from '@/api/project'
-import { ScanOutlined, FileSearchOutlined, FileOutlined } from '@ant-design/icons-vue'
+import { ScanOutlined, FileSearchOutlined, FileOutlined, RightOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 
 const applications = ref<Application[]>([])
 const selectedApplicationId = ref<number | null>(null)
-const latestScan = ref<CodeQualityScan | null>(null)
+const applicationServices = ref<ServiceEntity[]>([])
+const selectedServiceIds = ref<number[]>([])
+const loadingServices = ref(false)
+
+const scanHistory = ref<CodeQualityScan[]>([])
+const loadingHistory = ref(false)
+const isScanning = ref(false)
+
+const showReportModal = ref(false)
+const currentScan = ref<CodeQualityScan | null>(null)
 const issues = ref<CodeQualityIssue[]>([])
-const loading = ref(false)
-const scanning = ref(false)
 const categoryFilter = ref<string | undefined>(undefined)
 const severityFilter = ref<string | undefined>(undefined)
 
-const showScanModal = ref(false)
-const applicationServices = ref<ServiceEntity[]>([])
-const loadingServices = ref(false)
-const selectedServiceIds = ref<number[]>([])
-
-const scanningScanIds = ref<number[]>([])
 let progressPollingTimer: ReturnType<typeof setInterval> | null = null
+const scanningScanIds = ref<number[]>([])
 
-const isScanning = computed(() => latestScan.value?.status === 'IN_PROGRESS')
+const serviceOptions = computed(() => {
+  return applicationServices.value.map(s => ({
+    label: s.name,
+    value: s.id
+  }))
+})
+
+const reportTitle = computed(() => {
+  if (!currentScan.value) return '扫描报告'
+  const serviceName = getServiceName(currentScan.value.serviceId)
+  return `${serviceName} - 扫描报告`
+})
 
 const filteredIssues = computed(() => {
   let result = issues.value
@@ -250,52 +309,29 @@ const loadApplications = async () => {
   }
 }
 
-const loadApplicationServices = async () => {
+const handleApplicationChange = async () => {
+  scanHistory.value = []
+  selectedServiceIds.value = []
+  issues.value = []
+  
   if (!selectedApplicationId.value) return
   
   loadingServices.value = true
-  try {
-    const { data } = await serviceApi.getByApplicationId(selectedApplicationId.value)
-    applicationServices.value = data.data
-    selectedServiceIds.value = []
-  } catch (error) {
-    console.error(error)
-    message.error('加载服务列表失败')
-  } finally {
-    loadingServices.value = false
-  }
-}
-
-const handleApplicationChange = async () => {
-  if (!selectedApplicationId.value) return
+  loadingHistory.value = true
   
-  loading.value = true
-  loadApplicationServices()
   try {
-    const { data } = await codeQualityApi.getLatestScanByApplication(selectedApplicationId.value)
-    latestScan.value = data.data
-    
-    if (data.data?.status === 'IN_PROGRESS' && data.data?.id) {
-      scanningScanIds.value = [data.data.id]
-      startProgressPolling()
-    } else if (data.data?.id) {
-      loadIssues(data.data.id)
-    }
+    const [servicesRes, scansRes] = await Promise.all([
+      serviceApi.getByApplicationId(selectedApplicationId.value),
+      codeQualityApi.getScansByApplication(selectedApplicationId.value)
+    ])
+    applicationServices.value = servicesRes.data.data
+    scanHistory.value = scansRes.data.data
   } catch (error) {
     console.error(error)
     message.error('加载数据失败')
   } finally {
-    loading.value = false
-  }
-}
-
-const loadIssues = async (scanId: number) => {
-  try {
-    const { data } = await codeQualityApi.getIssues(scanId)
-    issues.value = data.data
-  } catch (error) {
-    console.error(error)
-    issues.value = []
+    loadingServices.value = false
+    loadingHistory.value = false
   }
 }
 
@@ -305,7 +341,7 @@ const handleScan = async () => {
     return
   }
   
-  scanning.value = true
+  isScanning.value = true
   let successCount = 0
   let failCount = 0
   
@@ -314,19 +350,13 @@ const handleScan = async () => {
       const { data } = await codeQualityApi.startScan(serviceId)
       if (data.data?.id) {
         scanningScanIds.value.push(data.data.id)
-        if (!latestScan.value || latestScan.value.status !== 'IN_PROGRESS') {
-          latestScan.value = data.data
-        }
+        successCount++
       }
-      successCount++
     } catch (error) {
       console.error(error)
       failCount++
     }
   }
-  
-  scanning.value = false
-  showScanModal.value = false
   
   if (successCount > 0) {
     message.success(`已启动 ${successCount} 个服务的扫描`)
@@ -335,6 +365,8 @@ const handleScan = async () => {
   if (failCount > 0) {
     message.error(`${failCount} 个服务扫描启动失败`)
   }
+  
+  isScanning.value = false
 }
 
 const startProgressPolling = () => {
@@ -355,19 +387,16 @@ const startProgressPolling = () => {
         const { data } = await codeQualityApi.getScan(scanId)
         const scan = data.data
         
-        if (!latestScan.value || latestScan.value.id === scanId || scan.status === 'IN_PROGRESS') {
-          latestScan.value = scan
-        }
-        
         if (scan.status === 'COMPLETED' || scan.status === 'FAILED') {
           completedIds.push(scanId)
           
           if (scan.status === 'COMPLETED') {
             message.success(`扫描完成: 发现 ${scan.totalIssues || 0} 个问题`)
-            loadIssues(scanId)
           } else {
             message.error(`扫描失败`)
           }
+          
+          await handleApplicationChange()
         }
       } catch (error) {
         console.error('Failed to poll scan progress:', error)
@@ -380,7 +409,7 @@ const startProgressPolling = () => {
     if (scanningScanIds.value.length === 0) {
       stopProgressPolling()
     }
-  }, 1000)
+  }, 2000)
 }
 
 const stopProgressPolling = () => {
@@ -390,9 +419,32 @@ const stopProgressPolling = () => {
   }
 }
 
-const cancelScan = () => {
-  showScanModal.value = false
-  selectedServiceIds.value = []
+const viewScanReport = async (scan: CodeQualityScan) => {
+  currentScan.value = scan
+  showReportModal.value = true
+  categoryFilter.value = undefined
+  severityFilter.value = undefined
+  
+  if (scan.status === 'COMPLETED') {
+    try {
+      const { data } = await codeQualityApi.getIssues(scan.id)
+      issues.value = data.data
+    } catch (error) {
+      console.error(error)
+      issues.value = []
+    }
+  }
+}
+
+const closeReport = () => {
+  showReportModal.value = false
+  currentScan.value = null
+  issues.value = []
+}
+
+const getServiceName = (serviceId: number) => {
+  const service = applicationServices.value.find(s => s.id === serviceId)
+  return service?.name || `服务 ${serviceId}`
 }
 
 const getShortPath = (path: string) => {
@@ -426,6 +478,12 @@ const formatDateTime = (dateStr: string) => {
   return date.toLocaleString('zh-CN')
 }
 
+const getScoreClass = (score: number) => {
+  if (score >= 80) return 'good'
+  if (score >= 60) return 'medium'
+  return 'poor'
+}
+
 onMounted(() => {
   loadApplications()
 })
@@ -447,21 +505,27 @@ onUnmounted(() => {
   height: 72px;
   flex-shrink: 0;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  justify-content: space-between;
+  align-items: center;
   padding: 0 var(--spacing-xl);
   background: var(--color-bg-secondary);
   border-bottom: 1px solid var(--color-border);
 }
 
-.page-header h1 {
+.header-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.header-left h1 {
   margin: 0 0 var(--spacing-xs);
   font-size: 24px;
   font-weight: 600;
   color: var(--color-text-primary);
 }
 
-.page-header p {
+.header-left p {
   margin: 0;
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
@@ -471,52 +535,227 @@ onUnmounted(() => {
   flex: 1;
   padding: var(--spacing-lg);
   overflow-y: auto;
-}
-
-.service-selector {
-  margin-bottom: var(--spacing-lg);
   display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
+  flex-direction: column;
+  gap: var(--spacing-lg);
 }
 
-.service-selector label {
-  font-weight: 500;
-  color: var(--color-text-secondary);
-}
-
-.scan-section,
-.issues-section {
+.operation-panel {
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
-  margin-bottom: var(--spacing-lg);
 }
 
-.section-header {
+.panel-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.form-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.form-item label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.scan-btn {
+  height: 32px;
+  padding: 0 var(--spacing-lg);
+}
+
+.history-section {
+  flex: 1;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.history-section .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-base);
+  flex-shrink: 0;
 }
 
-.section-header h2 {
+.history-section .section-header h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--color-text-primary);
 }
 
-.filter-group {
+.record-count {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}
+
+.history-list {
+  flex: 1;
+  overflow-y: auto;
   display: flex;
+  flex-direction: column;
   gap: var(--spacing-sm);
 }
 
-.scan-summary {
+.history-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-base);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.history-item:hover {
+  border-color: var(--color-accent-primary);
+  background: var(--color-bg-secondary);
+}
+
+.item-left {
+  min-width: 180px;
+}
+
+.scan-service {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.scan-time {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}
+
+.item-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xl);
+  padding: 0 var(--spacing-lg);
+}
+
+.score-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 80px;
+}
+
+.score-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.score-value {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.score-value.good { color: var(--color-success); }
+.score-value.medium { color: var(--color-warning); }
+.score-value.poor { color: var(--color-error); }
+
+.issue-summary {
+  display: flex;
+  gap: var(--spacing-base);
+}
+
+.issue-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.issue-item .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.issue-item.security .dot { background: #d73a49; }
+.issue-item.reliability .dot { background: #e36209; }
+.issue-item.maintainability .dot { background: #fbca04; }
+
+.item-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-base);
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+.status-badge.completed {
+  background: rgba(40, 167, 69, 0.1);
+  color: var(--color-success);
+}
+
+.status-badge.in_progress {
+  background: rgba(255, 193, 7, 0.1);
+  color: var(--color-warning);
+}
+
+.status-badge.failed {
+  background: rgba(220, 53, 69, 0.1);
+  color: var(--color-error);
+}
+
+.arrow-icon {
+  color: var(--color-text-tertiary);
+}
+
+.empty-state,
+.loading-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: var(--color-text-tertiary);
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: var(--spacing-base);
+  opacity: 0.3;
+}
+
+.loading-state {
+  gap: var(--spacing-base);
+}
+
+.report-content {
+  max-height: calc(90vh - 120px);
+  overflow-y: auto;
+}
+
+.report-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: var(--spacing-base);
+  margin-bottom: var(--spacing-lg);
 }
 
 .summary-card {
@@ -526,14 +765,23 @@ onUnmounted(() => {
   padding: var(--spacing-base);
 }
 
-.score-card .card-content {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-lg);
+.card-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-base);
 }
 
-.score-circle {
-  flex-shrink: 0;
+.card-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.score-card .card-content {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--spacing-lg);
 }
 
 .score-breakdown {
@@ -559,16 +807,10 @@ onUnmounted(() => {
   color: var(--color-text-primary);
 }
 
-.card-title {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  margin-bottom: var(--spacing-base);
-}
-
-.card-content {
-  display: flex;
-  flex-direction: column;
+.category-stats,
+.severity-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--spacing-sm);
 }
 
@@ -576,6 +818,9 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: var(--spacing-sm);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-sm);
 }
 
 .stat-label {
@@ -589,22 +834,6 @@ onUnmounted(() => {
   color: var(--color-text-primary);
 }
 
-.category-stats,
-.severity-stats {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--spacing-sm);
-}
-
-.category-stats .stat-item,
-.severity-stats .stat-item {
-  flex-direction: column;
-  align-items: flex-start;
-  padding: var(--spacing-sm);
-  background: var(--color-bg-secondary);
-  border-radius: var(--radius-sm);
-}
-
 .stat-item.security .stat-value { color: #d73a49; }
 .stat-item.reliability .stat-value { color: #e36209; }
 .stat-item.maintainability .stat-value { color: #fbca04; }
@@ -615,21 +844,30 @@ onUnmounted(() => {
 .stat-item.minor .stat-value { color: #fbca04; }
 .stat-item.info .stat-value { color: #28a745; }
 
-.no-scan {
-  text-align: center;
-  padding: var(--spacing-3xl);
-  color: var(--color-text-tertiary);
+.issues-section {
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-base);
 }
 
-.no-scan .empty-icon {
-  font-size: 48px;
+.issues-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: var(--spacing-base);
-  opacity: 0.3;
 }
 
-.no-scan p {
+.issues-section .section-header h3 {
   margin: 0;
-  font-size: var(--font-size-sm);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.filter-group {
+  display: flex;
+  gap: var(--spacing-sm);
 }
 
 .issues-list {
@@ -639,7 +877,7 @@ onUnmounted(() => {
 }
 
 .issue-item {
-  background: var(--color-bg-tertiary);
+  background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -650,7 +888,7 @@ onUnmounted(() => {
   align-items: center;
   gap: var(--spacing-sm);
   padding: var(--spacing-sm) var(--spacing-base);
-  background: var(--color-bg-secondary);
+  background: var(--color-bg-tertiary);
   border-bottom: 1px solid var(--color-border-light);
 }
 
@@ -726,39 +964,15 @@ onUnmounted(() => {
   color: var(--color-text-secondary);
 }
 
-.status-completed { color: var(--color-success); }
-.status-in_progress { color: var(--color-warning); }
-.status-failed { color: var(--color-error); }
-.scanning { color: #d73a49; font-weight: 600; animation: blink 1s infinite; }
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.service-list {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.service-item {
-  padding: var(--spacing-sm);
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.service-item:last-child {
-  border-bottom: none;
-}
-
-.loading-container {
-  display: flex;
-  justify-content: center;
-  padding: var(--spacing-xl);
-}
-
-.no-data {
+.no-issues {
   text-align: center;
-  padding: var(--spacing-xl);
+  padding: var(--spacing-3xl);
   color: var(--color-text-tertiary);
+}
+
+.success-icon {
+  font-size: 48px;
+  color: var(--color-success);
+  margin-bottom: var(--spacing-base);
 }
 </style>

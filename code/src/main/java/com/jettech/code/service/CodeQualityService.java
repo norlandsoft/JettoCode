@@ -51,6 +51,10 @@ public class CodeQualityService {
         return scanMapper.findLatestByApplicationId(applicationId);
     }
 
+    public List<CodeQualityScan> getScansByApplication(Long applicationId) {
+        return scanMapper.findByApplicationId(applicationId);
+    }
+
     public List<CodeQualityIssue> getIssues(Long scanId) {
         return issueMapper.findByScanId(scanId);
     }

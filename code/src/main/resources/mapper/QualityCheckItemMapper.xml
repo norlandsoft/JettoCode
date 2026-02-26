@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jettech.code.mapper.QualityCheckItemMapper">
+    <resultMap id="QualityCheckItemMap" type="com.jettech.code.entity.QualityCheckItem">
+        <id property="id" column="id"/>
+        <result property="category" column="category"/>
+        <result property="ruleId" column="rule_id"/>
+        <result property="ruleName" column="rule_name"/>
+        <result property="severity" column="severity"/>
+        <result property="description" column="description"/>
+        <result property="promptTemplate" column="prompt_template"/>
+        <result property="enabled" column="enabled"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="QualityCheckItemMap">
+        SELECT * FROM quality_check_item ORDER BY category, sort_order, id
+    </select>
+
+    <select id="findByCategory" resultMap="QualityCheckItemMap">
+        SELECT * FROM quality_check_item WHERE category = #{category} ORDER BY sort_order, id
+    </select>
+
+    <select id="findByEnabled" resultMap="QualityCheckItemMap">
+        SELECT * FROM quality_check_item WHERE enabled = #{enabled} ORDER BY category, sort_order, id
+    </select>
+
+    <select id="findById" resultMap="QualityCheckItemMap">
+        SELECT * FROM quality_check_item WHERE id = #{id}
+    </select>
+
+    <select id="findByRuleId" resultMap="QualityCheckItemMap">
+        SELECT * FROM quality_check_item WHERE rule_id = #{ruleId}
+    </select>
+
+    <insert id="insert" parameterType="com.jettech.code.entity.QualityCheckItem" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO quality_check_item (
+            category, rule_id, rule_name, severity, description,
+            prompt_template, enabled, sort_order, created_at, updated_at
+        ) VALUES (
+            #{category}, #{ruleId}, #{ruleName}, #{severity}, #{description},
+            #{promptTemplate}, #{enabled}, #{sortOrder}, #{createdAt}, #{updatedAt}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.jettech.code.entity.QualityCheckItem">
+        UPDATE quality_check_item
+        <set>
+            <if test="category != null">category = #{category},</if>
+            <if test="ruleId != null">rule_id = #{ruleId},</if>
+            <if test="ruleName != null">rule_name = #{ruleName},</if>
+            <if test="severity != null">severity = #{severity},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="promptTemplate != null">prompt_template = #{promptTemplate},</if>
+            <if test="enabled != null">enabled = #{enabled},</if>
+            <if test="sortOrder != null">sort_order = #{sortOrder},</if>
+            updated_at = #{updatedAt}
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateEnabled">
+        UPDATE quality_check_item SET enabled = #{enabled}, updated_at = NOW() WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM quality_check_item WHERE id = #{id}
+    </delete>
+</mapper>

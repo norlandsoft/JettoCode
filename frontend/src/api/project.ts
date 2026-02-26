@@ -172,6 +172,10 @@ export const codeQualityApi = {
     return api.get<ApiResponse<CodeQualityScan>>(`/code-quality/applications/${applicationId}/scans/latest`)
   },
 
+  getScansByApplication(applicationId: number) {
+    return api.get<ApiResponse<CodeQualityScan[]>>(`/code-quality/applications/${applicationId}/scans`)
+  },
+
   startScan(serviceId: number) {
     return api.post<ApiResponse<CodeQualityScan>>(`/code-quality/services/${serviceId}/scan`)
   },
@@ -186,4 +190,49 @@ export const codeQualityApi = {
   getIssue(issueId: number) {
     return api.get<ApiResponse<CodeQualityIssue>>(`/code-quality/issues/${issueId}`)
   }
+}
+
+export const qualityCheckApi = {
+  getAll(category?: string, enabled?: boolean) {
+    const params: Record<string, string | boolean> = {}
+    if (category) params.category = category
+    if (enabled !== undefined) params.enabled = enabled
+    return api.get<ApiResponse<QualityCheckItem[]>>('/quality-check-items', { params })
+  },
+
+  getById(id: number) {
+    return api.get<ApiResponse<QualityCheckItem>>(`/quality-check-items/${id}`)
+  },
+
+  create(data: Partial<QualityCheckItem>) {
+    return api.post<ApiResponse<QualityCheckItem>>('/quality-check-items', data)
+  },
+
+  update(id: number, data: Partial<QualityCheckItem>) {
+    return api.put<ApiResponse<QualityCheckItem>>(`/quality-check-items/${id}`, data)
+  },
+
+  delete(id: number) {
+    return api.delete<ApiResponse<void>>(`/quality-check-items/${id}`)
+  },
+
+  updateEnabled(id: number, enabled: boolean) {
+    return api.put<ApiResponse<void>>(`/quality-check-items/${id}/enabled`, null, {
+      params: { enabled }
+    })
+  }
+}
+
+interface QualityCheckItem {
+  id: number
+  category: string
+  ruleId: string
+  ruleName: string
+  severity: string
+  description: string
+  promptTemplate: string
+  enabled: boolean
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
 }

@@ -16,6 +16,8 @@ public interface CodeQualityScanMapper {
     
     CodeQualityScan findLatestByApplicationId(Long applicationId);
     
+    List<CodeQualityScan> findByApplicationId(Long applicationId);
+    
     int insert(CodeQualityScan scan);
     
     int update(CodeQualityScan scan);

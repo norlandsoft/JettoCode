@@ -180,3 +180,20 @@ CREATE TABLE IF NOT EXISTS code_quality_issue (
     INDEX idx_severity (severity),
     INDEX idx_file_path (file_path(255))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS quality_check_item (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    category VARCHAR(50) NOT NULL,
+    rule_id VARCHAR(100) NOT NULL UNIQUE,
+    rule_name VARCHAR(255) NOT NULL,
+    severity VARCHAR(50) NOT NULL,
+    description TEXT,
+    prompt_template TEXT NOT NULL,
+    enabled TINYINT(1) DEFAULT 1,
+    sort_order INT DEFAULT 0,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    INDEX idx_category (category),
+    INDEX idx_enabled (enabled),
+    INDEX idx_rule_id (rule_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -26,6 +26,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '代码质量' }
       },
       {
+        path: 'platform-management',
+        name: 'PlatformManagement',
+        component: () => import('@/views/PlatformManagement.vue'),
+        meta: { title: '平台管理' }
+      },
+      {
         path: 'application/:id',
         name: 'ApplicationDetail',
         component: () => import('@/views/ApplicationDetail.vue'),

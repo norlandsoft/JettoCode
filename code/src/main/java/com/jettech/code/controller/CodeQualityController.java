@@ -45,6 +45,12 @@ public class CodeQualityController {
         return ResponseEntity.ok(ApiResponse.success(scan));
     }
 
+    @GetMapping("/applications/{applicationId}/scans")
+    public ResponseEntity<ApiResponse<List<CodeQualityScan>>> getScansByApplication(@PathVariable Long applicationId) {
+        List<CodeQualityScan> scans = codeQualityService.getScansByApplication(applicationId);
+        return ResponseEntity.ok(ApiResponse.success(scans));
+    }
+
     @PostMapping("/services/{serviceId}/scan")
     public ResponseEntity<ApiResponse<CodeQualityScan>> startScan(@PathVariable Long serviceId) {
         try {
