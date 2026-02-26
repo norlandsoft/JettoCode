@@ -194,12 +194,13 @@ const checkEditor = shallowRef<monaco.editor.IStandaloneCodeEditor | null>(null)
 const loadData = async () => {
   loading.value = true
   try {
-    const { data } = await qualityCheckApi.getTree()
+    const response = await qualityCheckApi.getTree()
+    const treeData = response.data.data || []
     const categories: CheckCategory[] = []
     const configs: Record<string, string> = {}
     const defaults: Record<string, string> = {}
 
-    for (const group of data) {
+    for (const group of treeData) {
       const items: CheckItem[] = (group.items || []).map(item => ({
         id: item.id,
         key: item.itemKey,
