@@ -340,7 +340,7 @@ public class CodeQualityService {
         return false;
     }
 
-    private CodeQualityIssue createIssue(Long scanId, String filePath, int line, 
+    private CodeQualityIssue createIssue(Long scanId, String filePath, int line,
                                          String category, String severity,
                                          String ruleId, String ruleName,
                                          String message, String codeSnippet) {
@@ -355,6 +355,10 @@ public class CodeQualityService {
         issue.setRuleName(ruleName);
         issue.setMessage(message);
         issue.setSuggestion(message);
+        // Truncate code snippet to 1MB to avoid database overflow
+        if (codeSnippet != null && codeSnippet.length() > 1_000_000) {
+            codeSnippet = codeSnippet.substring(0, 1_000_000) + "...[truncated]";
+        }
         issue.setCodeSnippet(codeSnippet);
         issue.setStatus("OPEN");
         issue.setCreatedAt(LocalDateTime.now());

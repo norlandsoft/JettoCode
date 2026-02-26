@@ -171,7 +171,7 @@ CREATE TABLE IF NOT EXISTS code_quality_issue (
     rule_name VARCHAR(255),
     message TEXT,
     suggestion TEXT,
-    code_snippet TEXT,
+    code_snippet LONGTEXT,
     status VARCHAR(50),
     created_at DATETIME NOT NULL,
     FOREIGN KEY (scan_id) REFERENCES code_quality_scan(id) ON DELETE CASCADE,
