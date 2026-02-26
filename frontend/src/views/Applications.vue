@@ -406,13 +406,17 @@ onMounted(() => {
 }
 
 .page-header {
+  height: 72px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
 }
 
 .header-content {
+  width: 100%;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--spacing-lg);
 }
 

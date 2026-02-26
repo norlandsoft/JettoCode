@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jettech.code.mapper.LicenseRuleMapper">
+    <resultMap id="LicenseRuleMap" type="com.jettech.code.entity.LicenseRule">
+        <id property="id" column="id"/>
+        <result property="packagePattern" column="package_pattern"/>
+        <result property="licenseType" column="license_type"/>
+        <result property="ecosystem" column="ecosystem"/>
+        <result property="source" column="source"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="LicenseRuleMap">
+        SELECT * FROM license_rule ORDER BY package_pattern
+    </select>
+
+    <select id="findByEcosystem" resultMap="LicenseRuleMap">
+        SELECT * FROM license_rule WHERE ecosystem = #{ecosystem} ORDER BY package_pattern
+    </select>
+
+    <select id="findByPackagePattern" resultMap="LicenseRuleMap">
+        SELECT * FROM license_rule WHERE package_pattern = #{packagePattern}
+    </select>
+
+    <insert id="insert" parameterType="com.jettech.code.entity.LicenseRule" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO license_rule (package_pattern, license_type, ecosystem, source, created_at)
+        VALUES (#{packagePattern}, #{licenseType}, #{ecosystem}, #{source}, #{createdAt})
+    </insert>
+
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO license_rule (package_pattern, license_type, ecosystem, source, created_at)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.packagePattern}, #{item.licenseType}, #{item.ecosystem}, #{item.source}, #{item.createdAt})
+        </foreach>
+    </insert>
+
+    <delete id="deleteById">
+        DELETE FROM license_rule WHERE id = #{id}
+    </delete>
+</mapper>

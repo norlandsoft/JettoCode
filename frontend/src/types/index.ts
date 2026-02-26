@@ -133,3 +133,55 @@ export interface DiffChange {
   content: string
   affectedApis: string[]
 }
+
+export interface Dependency {
+  id: number
+  serviceId: number
+  name: string
+  version: string
+  groupId: string
+  artifactId: string
+  type: string
+  scope: string
+  license: string
+  licenseStatus: string
+  purl: string
+  filePath: string
+  checksum: string
+  createdAt: string
+}
+
+export interface Vulnerability {
+  id: number
+  dependencyId: number
+  cveId: string
+  cweId: string
+  severity: string
+  cvssScore: number
+  title: string
+  description: string
+  affectedVersion: string
+  fixedVersion: string
+  references: string
+  status: string
+  createdAt: string
+}
+
+export interface SecurityScan {
+  id: number
+  serviceId: number
+  scanType: string
+  status: string
+  totalDependencies: number
+  vulnerableDependencies: number
+  criticalCount: number
+  highCount: number
+  mediumCount: number
+  lowCount: number
+  licenseViolationCount: number
+  malwareCount: number
+  reportPath: string
+  startedAt: string
+  completedAt: string
+  createdAt: string
+}

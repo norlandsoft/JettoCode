@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jettech.code.mapper.SecurityScanMapper">
+    <resultMap id="SecurityScanMap" type="com.jettech.code.entity.SecurityScan">
+        <id property="id" column="id"/>
+        <result property="serviceId" column="service_id"/>
+        <result property="scanType" column="scan_type"/>
+        <result property="status" column="status"/>
+        <result property="totalDependencies" column="total_dependencies"/>
+        <result property="vulnerableDependencies" column="vulnerable_dependencies"/>
+        <result property="criticalCount" column="critical_count"/>
+        <result property="highCount" column="high_count"/>
+        <result property="mediumCount" column="medium_count"/>
+        <result property="lowCount" column="low_count"/>
+        <result property="licenseViolationCount" column="license_violation_count"/>
+        <result property="malwareCount" column="malware_count"/>
+        <result property="reportPath" column="report_path"/>
+        <result property="startedAt" column="started_at"/>
+        <result property="completedAt" column="completed_at"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findByServiceId" resultMap="SecurityScanMap">
+        SELECT * FROM security_scan WHERE service_id = #{serviceId} ORDER BY created_at DESC
+    </select>
+
+    <select id="findById" resultMap="SecurityScanMap">
+        SELECT * FROM security_scan WHERE id = #{id}
+    </select>
+
+    <select id="findLatestByServiceId" resultMap="SecurityScanMap">
+        SELECT * FROM security_scan WHERE service_id = #{serviceId} ORDER BY created_at DESC LIMIT 1
+    </select>
+
+    <select id="findByServiceIdAndStatus" resultMap="SecurityScanMap">
+        SELECT * FROM security_scan WHERE service_id = #{serviceId} AND status = #{status} ORDER BY created_at DESC
+    </select>
+
+    <insert id="insert" parameterType="com.jettech.code.entity.SecurityScan" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO security_scan (service_id, scan_type, status, total_dependencies, vulnerable_dependencies, critical_count, high_count, medium_count, low_count, license_violation_count, malware_count, report_path, started_at, completed_at, created_at)
+        VALUES (#{serviceId}, #{scanType}, #{status}, #{totalDependencies}, #{vulnerableDependencies}, #{criticalCount}, #{highCount}, #{mediumCount}, #{lowCount}, #{licenseViolationCount}, #{malwareCount}, #{reportPath}, #{startedAt}, #{completedAt}, #{createdAt})
+    </insert>
+
+    <update id="update" parameterType="com.jettech.code.entity.SecurityScan">
+        UPDATE security_scan
+        <set>
+            <if test="scanType != null">scan_type = #{scanType},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="totalDependencies != null">total_dependencies = #{totalDependencies},</if>
+            <if test="vulnerableDependencies != null">vulnerable_dependencies = #{vulnerableDependencies},</if>
+            <if test="criticalCount != null">critical_count = #{criticalCount},</if>
+            <if test="highCount != null">high_count = #{highCount},</if>
+            <if test="mediumCount != null">medium_count = #{mediumCount},</if>
+            <if test="lowCount != null">low_count = #{lowCount},</if>
+            <if test="licenseViolationCount != null">license_violation_count = #{licenseViolationCount},</if>
+            <if test="malwareCount != null">malware_count = #{malwareCount},</if>
+            <if test="reportPath != null">report_path = #{reportPath},</if>
+            <if test="startedAt != null">started_at = #{startedAt},</if>
+            <if test="completedAt != null">completed_at = #{completedAt},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByServiceId">
+        DELETE FROM security_scan WHERE service_id = #{serviceId}
+    </delete>
+
+    <delete id="deleteById">
+        DELETE FROM security_scan WHERE id = #{id}
+    </delete>
+
+    <select id="findByApplicationId" resultMap="SecurityScanMap">
+        SELECT ss.* FROM security_scan ss
+        INNER JOIN service s ON ss.service_id = s.id
+        WHERE s.application_id = #{applicationId}
+        ORDER BY ss.created_at DESC
+    </select>
+
+    <select id="findLatestByApplicationId" resultMap="SecurityScanMap">
+        SELECT ss.* FROM security_scan ss
+        INNER JOIN service s ON ss.service_id = s.id
+        WHERE s.application_id = #{applicationId}
+        ORDER BY ss.created_at DESC LIMIT 1
+    </select>
+</mapper>

@@ -27,6 +27,7 @@ frontend/*.local
 .classpath
 .settings/
 .code.pid
+.backend.pid
 .factorypath
 
 # Logs

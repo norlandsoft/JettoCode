@@ -14,6 +14,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '应用系统' }
       },
       {
+        path: 'supply-chain',
+        name: 'SupplyChainSecurity',
+        component: () => import('@/views/SupplyChainSecurity.vue'),
+        meta: { title: '供应链安全' }
+      },
+      {
         path: 'application/:id',
         name: 'ApplicationDetail',
         component: () => import('@/views/ApplicationDetail.vue'),

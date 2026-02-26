@@ -9,7 +9,10 @@ import type {
   ApiResponse,
   Branch,
   FileNode,
-  CodeContent
+  CodeContent,
+  Dependency,
+  Vulnerability,
+  SecurityScan
 } from '@/types'
 
 export const applicationApi = {
@@ -105,5 +108,43 @@ export const versionApi = {
 
   delete(id: number) {
     return api.delete<ApiResponse<void>>(`/versions/${id}`)
+  }
+}
+
+export const supplyChainApi = {
+  getDependencies(serviceId: number) {
+    return api.get<ApiResponse<Dependency[]>>(`/supply-chain/services/${serviceId}/dependencies`)
+  },
+
+  parseDependencies(serviceId: number) {
+    return api.get<ApiResponse<Dependency[]>>(`/supply-chain/services/${serviceId}/parse`)
+  },
+
+  getDependency(id: number) {
+    return api.get<ApiResponse<Dependency>>(`/supply-chain/dependencies/${id}`)
+  },
+
+  getScans(serviceId: number) {
+    return api.get<ApiResponse<SecurityScan[]>>(`/supply-chain/services/${serviceId}/scans`)
+  },
+
+  getLatestScan(serviceId: number) {
+    return api.get<ApiResponse<SecurityScan>>(`/supply-chain/services/${serviceId}/scans/latest`)
+  },
+
+  performScan(serviceId: number) {
+    return api.post<ApiResponse<SecurityScan>>(`/supply-chain/services/${serviceId}/scan`)
+  },
+
+  getVulnerabilities(dependencyId: number) {
+    return api.get<ApiResponse<Vulnerability[]>>(`/supply-chain/dependencies/${dependencyId}/vulnerabilities`)
+  },
+
+  getDependenciesByApplication(applicationId: number) {
+    return api.get<ApiResponse<Dependency[]>>(`/supply-chain/applications/${applicationId}/dependencies`)
+  },
+
+  getLatestScanByApplication(applicationId: number) {
+    return api.get<ApiResponse<SecurityScan>>(`/supply-chain/applications/${applicationId}/scans/latest`)
   }
 }
