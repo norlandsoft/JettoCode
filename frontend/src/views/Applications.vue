@@ -1,101 +1,101 @@
 <template>
   <div class="applications-page">
-    <header class="page-header">
-      <div class="header-content">
-        <div class="title-section">
-          <h1 class="page-title">应用系统</h1>
-          <p class="page-description">管理和分析您的代码仓库</p>
-        </div>
-        <div class="actions-section">
-          <button class="btn btn-primary" @click="showCreateModal = true">
-            <PlusOutlined />
-            <span>新建应用</span>
-          </button>
-        </div>
+    <div class="page-header">
+      <div class="header-left">
+        <h1>应用系统</h1>
+        <p>管理和分析您的代码仓库</p>
       </div>
-    </header>
-
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon">
-          <AppstoreOutlined />
-        </div>
-        <div class="stat-body">
-          <span class="stat-value">{{ applications.length }}</span>
-          <span class="stat-label">应用总数</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">
-          <CloudServerOutlined />
-        </div>
-        <div class="stat-body">
-          <span class="stat-value">{{ totalServices }}</span>
-          <span class="stat-label">服务总数</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">
-          <HistoryOutlined />
-        </div>
-        <div class="stat-body">
-          <span class="stat-value">{{ recentApplications }}</span>
-          <span class="stat-label">近期更新</span>
-        </div>
-      </div>
+      <button class="btn btn-primary" @click="showCreateModal = true">
+        <PlusOutlined />
+        <span>新建应用</span>
+      </button>
     </div>
 
-    <div class="applications-grid" v-if="!loading && applications.length > 0">
-      <div 
-        v-for="app in applications" 
-        :key="app.id"
-        class="application-card"
-      >
-        <div class="card-header">
-          <div class="app-icon">
+    <div class="content">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">
             <AppstoreOutlined />
           </div>
-          <div class="app-info">
-            <span class="app-name" @click="goToApplication(app.id)">{{ app.name }}</span>
-            <span class="app-meta">{{ serviceCounts[app.id] || 0 }} 服务 · {{ formatDate(app.updatedAt) }}</span>
+          <div class="stat-body">
+            <span class="stat-value">{{ applications.length }}</span>
+            <span class="stat-label">应用总数</span>
           </div>
-          <a-dropdown :trigger="['click']">
-            <button class="card-menu-btn" @click.stop>
-              <MoreOutlined />
-            </button>
-            <template #overlay>
-              <a-menu @click="(e: any) => handleMenuClick(e.key, app)">
-                <a-menu-item key="edit">
-                  <EditOutlined />
-                  <span>编辑</span>
-                </a-menu-item>
-                <a-menu-divider />
-                <a-menu-item key="delete" class="menu-item-danger">
-                  <DeleteOutlined />
-                  <span>删除</span>
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
         </div>
-        
-        <div class="card-body">
-          <p class="app-description">{{ app.description || '暂无描述' }}</p>
+        <div class="stat-card">
+          <div class="stat-icon">
+            <CloudServerOutlined />
+          </div>
+          <div class="stat-body">
+            <span class="stat-value">{{ totalServices }}</span>
+            <span class="stat-label">服务总数</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">
+            <HistoryOutlined />
+          </div>
+          <div class="stat-body">
+            <span class="stat-value">{{ recentApplications }}</span>
+            <span class="stat-label">近期更新</span>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="empty-state" v-if="!loading && applications.length === 0">
-      <div class="empty-icon">
-        <AppstoreAddOutlined />
+      <div class="applications-section" v-if="!loading && applications.length > 0">
+        <div class="applications-grid">
+          <div
+            v-for="app in applications"
+            :key="app.id"
+            class="application-card"
+          >
+            <div class="card-header">
+              <div class="app-icon">
+                <AppstoreOutlined />
+              </div>
+              <div class="app-info">
+                <span class="app-name" @click="goToApplication(app.id)">{{ app.name }}</span>
+                <span class="app-meta">{{ serviceCounts[app.id] || 0 }} 服务 · {{ formatDate(app.updatedAt) }}</span>
+              </div>
+              <a-dropdown :trigger="['click']">
+                <button class="card-menu-btn" @click.stop>
+                  <MoreOutlined />
+                </button>
+                <template #overlay>
+                  <a-menu @click="(e: any) => handleMenuClick(e.key, app)">
+                    <a-menu-item key="edit">
+                      <EditOutlined />
+                      <span>编辑</span>
+                    </a-menu-item>
+                    <a-menu-divider />
+                    <a-menu-item key="delete" class="menu-item-danger">
+                      <DeleteOutlined />
+                      <span>删除</span>
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </div>
+
+            <div class="card-body">
+              <p class="app-description">{{ app.description || '暂无描述' }}</p>
+            </div>
+          </div>
+        </div>
       </div>
-      <h3>暂无应用</h3>
-      <p>点击右上角的"新建应用"按钮开始</p>
-    </div>
 
-    <div class="loading-state" v-if="loading">
-      <div class="spinner"></div>
-      <p>加载中...</p>
+      <div class="empty-state" v-if="!loading && applications.length === 0">
+        <div class="empty-icon">
+          <AppstoreAddOutlined />
+        </div>
+        <h3>暂无应用</h3>
+        <p>点击右上角的"新建应用"按钮开始</p>
+      </div>
+
+      <div class="loading-state" v-if="loading">
+        <div class="spinner"></div>
+        <p>加载中...</p>
+      </div>
     </div>
 
     <a-modal
@@ -401,53 +401,57 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-base);
-  padding: var(--spacing-lg);
+  background: var(--color-bg-primary);
 }
 
 .page-header {
   height: 72px;
   flex-shrink: 0;
   display: flex;
-  align-items: center;
-}
-
-.header-content {
-  width: 100%;
-  display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: var(--spacing-lg);
+  padding: 0 var(--spacing-xl);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.title-section {
-  flex: 1;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  margin: 0;
-  letter-spacing: -0.5px;
-}
-
-.page-description {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-tertiary);
-  margin: var(--spacing-xs) 0 0;
-}
-
-.actions-section {
+.header-left {
   display: flex;
-  gap: var(--spacing-base);
+  flex-direction: column;
+  justify-content: center;
+}
+
+.header-left h1 {
+  margin: 0 0 var(--spacing-xs);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.header-left p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.content {
+  flex: 1;
+  padding: var(--spacing-lg);
+  overflow-y: auto;
+}
+
+.applications-section {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
 }
 
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: var(--spacing-base);
-  flex-shrink: 0;
 }
 
 .stat-card {
@@ -500,16 +504,14 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: var(--spacing-base);
-  flex: 1;
-  overflow-y: auto;
 }
 
 .application-card {
   display: flex;
   flex-direction: column;
   height: 110px;
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-light);
   border-radius: var(--radius-lg);
   overflow: hidden;
   transition: all var(--transition-fast);
@@ -617,7 +619,6 @@ onMounted(() => {
   justify-content: center;
   padding: var(--spacing-3xl);
   text-align: center;
-  flex: 1;
 }
 
 .empty-icon {
@@ -736,18 +737,10 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
-  .applications-page {
-    padding: var(--spacing-base);
-  }
-  
-  .header-content {
-    flex-direction: column;
-  }
-  
   .applications-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .stats-grid {
     grid-template-columns: 1fr;
   }
