@@ -19,6 +19,7 @@
           </div>
           <div class="tree-content">
             <FileTree
+              ref="fileTreeRef"
               :tree-data="fileTree"
               @select="handleFileSelect"
               @expand="handleFolderExpand"
@@ -114,6 +115,9 @@ const loadingBranches = ref(false)
 
 const fileTree = ref<FileNode[]>([])
 const loadingTree = ref(false)
+
+// FileTree 组件引用
+const fileTreeRef = ref<InstanceType<typeof FileTree> | null>(null)
 
 const currentFile = ref('')
 const currentFolder = ref('')
@@ -223,7 +227,7 @@ const initEditor = () => {
     fontSize: 13,
     fontFamily: "'JetBrains Mono', 'Consolas', 'Monaco', monospace",
     automaticLayout: true,
-    wordWrap: 'on',
+    wordWrap: 'off',
     folding: true,
     renderLineHighlight: 'line',
     scrollbar: {
@@ -315,6 +319,9 @@ const handleFolderExpand = (_node: FileNode, _expanded: boolean) => {
 }
 
 const handleItemClick = (item: FileNode) => {
+  // 同步文件树选中状态
+  fileTreeRef.value?.selectAndExpandTo(item.path)
+  
   if (item.type === 'file') {
     currentFile.value = item.path
     currentFolder.value = ''

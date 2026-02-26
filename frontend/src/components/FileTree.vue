@@ -388,6 +388,16 @@ const handleSearch = () => {
 const handleSelect = (keys: any, info: any) => {
   const node = info.node?.data as FileNode
   if (node) {
+    // 如果是文件夹，切换展开状态
+    if (node.type === 'directory') {
+      const isExpanded = expandedKeys.value.includes(node.path)
+      if (isExpanded) {
+        expandedKeys.value = expandedKeys.value.filter(k => k !== node.path)
+      } else {
+        expandedKeys.value.push(node.path)
+      }
+      emit('expand', node, !isExpanded)
+    }
     emit('select', node, keys.includes(node.path))
   }
 }
@@ -518,6 +528,66 @@ defineExpose({
   },
   collapseNode: (path: string) => {
     expandedKeys.value = expandedKeys.value.filter((k) => k !== path)
+  },
+  // 展开到指定节点的所有父级目录
+  expandToNode: (targetPath: string) => {
+    const parentPaths: string[] = []
+    
+    const findPath = (nodes: FileNode[], currentPath: string): boolean => {
+      for (const node of nodes) {
+        if (node.path === targetPath) {
+          return true
+        }
+        if (node.type === 'directory' && node.children) {
+          parentPaths.push(node.path)
+          if (findPath(node.children, currentPath)) {
+            return true
+          }
+          parentPaths.pop()
+        }
+      }
+      return false
+    }
+    
+    findPath(props.treeData, '')
+    
+    // 展开所有父级目录
+    for (const path of parentPaths) {
+      if (!expandedKeys.value.includes(path)) {
+        expandedKeys.value.push(path)
+      }
+    }
+  },
+  // 选中并展开到指定节点
+  selectAndExpandTo: (path: string) => {
+    selectedKeys.value = [path]
+    // 展开到目标节点
+    const parentPaths: string[] = []
+    
+    const findPath = (nodes: FileNode[]): boolean => {
+      for (const node of nodes) {
+        if (node.path === path) {
+          return true
+        }
+        if (node.type === 'directory' && node.children) {
+          parentPaths.push(node.path)
+          if (findPath(node.children)) {
+            return true
+          }
+          parentPaths.pop()
+        }
+      }
+      return false
+    }
+    
+    findPath(props.treeData)
+    
+    // 展开所有父级目录（不包括目标本身）
+    for (const p of parentPaths) {
+      if (!expandedKeys.value.includes(p)) {
+        expandedKeys.value.push(p)
+      }
+    }
   },
 })
 </script>
@@ -675,6 +745,7 @@ defineExpose({
   flex: 1;
   min-width: 0;
   font-size: 13px;
+  font-family: var(--font-ui, 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
   line-height: 28px;
   height: 28px;
   white-space: nowrap;
