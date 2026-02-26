@@ -224,3 +224,37 @@ CREATE TABLE IF NOT EXISTS quality_check_config (
     INDEX idx_enabled (enabled),
     INDEX idx_group_sort (group_id, sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='质量检查配置';
+
+-- 代码质量扫描任务表
+DROP TABLE IF EXISTS code_quality_task;
+CREATE TABLE IF NOT EXISTS code_quality_task (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    scan_id BIGINT NOT NULL COMMENT '父扫描ID',
+    service_id BIGINT NOT NULL COMMENT '要扫描的服务ID',
+    service_name VARCHAR(255) COMMENT '服务名称（用于显示）',
+    check_item_id BIGINT NOT NULL COMMENT '检查项ID',
+    check_item_key VARCHAR(100) NOT NULL COMMENT '检查项标识',
+    check_item_name VARCHAR(255) COMMENT '检查项名称（用于显示）',
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING' COMMENT '任务状态: PENDING, RUNNING, COMPLETED, FAILED',
+    priority INT DEFAULT 0 COMMENT '执行优先级',
+    opencode_session_id VARCHAR(100) COMMENT 'OpenCode会话ID',
+    prompt_text TEXT COMMENT '发送给OpenCode的完整提示词',
+    response_text LONGTEXT COMMENT 'OpenCode的响应',
+    issue_count INT DEFAULT 0 COMMENT '发现的问题数量',
+    severity VARCHAR(50) COMMENT '整体严重级别: NONE, LOW, MEDIUM, HIGH, CRITICAL',
+    result_summary TEXT COMMENT '扫描结果摘要',
+    started_at DATETIME COMMENT '任务开始时间',
+    completed_at DATETIME COMMENT '任务完成时间',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    error_message TEXT COMMENT '错误信息',
+    retry_count INT DEFAULT 0 COMMENT '重试次数',
+    FOREIGN KEY (scan_id) REFERENCES code_quality_scan(id) ON DELETE CASCADE,
+    FOREIGN KEY (service_id) REFERENCES service(id) ON DELETE CASCADE,
+    FOREIGN KEY (check_item_id) REFERENCES quality_check_config(id) ON DELETE CASCADE,
+    INDEX idx_scan_id (scan_id),
+    INDEX idx_service_id (service_id),
+    INDEX idx_check_item_id (check_item_id),
+    INDEX idx_status (status),
+    INDEX idx_opencode_session (opencode_session_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='代码质量扫描任务表';
