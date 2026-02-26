@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jettech.code.mapper.CodeQualityTaskMapper">
+
+    <resultMap id="taskResultMap" type="com.jettech.code.entity.CodeQualityTask">
+        <id property="id" column="id"/>
+        <result property="scanId" column="scan_id"/>
+        <result property="serviceId" column="service_id"/>
+        <result property="serviceName" column="service_name"/>
+        <result property="checkItemId" column="check_item_id"/>
+        <result property="checkItemKey" column="check_item_key"/>
+        <result property="checkItemName" column="check_item_name"/>
+        <result property="status" column="status"/>
+        <result property="priority" column="priority"/>
+        <result property="opencodeSessionId" column="opencode_session_id"/>
+        <result property="promptText" column="prompt_text"/>
+        <result property="responseText" column="response_text"/>
+        <result property="issueCount" column="issue_count"/>
+        <result property="severity" column="severity"/>
+        <result property="resultSummary" column="result_summary"/>
+        <result property="startedAt" column="started_at"/>
+        <result property="completedAt" column="completed_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="errorMessage" column="error_message"/>
+        <result property="retryCount" column="retry_count"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.jettech.code.entity.CodeQualityTask" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO code_quality_task (
+            scan_id, service_id, service_name, check_item_id, check_item_key, check_item_name,
+            status, priority, opencode_session_id, prompt_text, response_text,
+            issue_count, severity, result_summary, started_at, completed_at,
+            error_message, retry_count
+        ) VALUES (
+            #{scanId}, #{serviceId}, #{serviceName}, #{checkItemId}, #{checkItemKey}, #{checkItemName},
+            #{status}, #{priority}, #{opencodeSessionId}, #{promptText}, #{responseText},
+            #{issueCount}, #{severity}, #{resultSummary}, #{startedAt}, #{completedAt},
+            #{errorMessage}, #{retryCount}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.jettech.code.entity.CodeQualityTask">
+        UPDATE code_quality_task SET
+            scan_id = #{scanId},
+            service_id = #{serviceId},
+            service_name = #{serviceName},
+            check_item_id = #{checkItemId},
+            check_item_key = #{checkItemKey},
+            check_item_name = #{checkItemName},
+            status = #{status},
+            priority = #{priority},
+            opencode_session_id = #{opencodeSessionId},
+            prompt_text = #{promptText},
+            response_text = #{responseText},
+            issue_count = #{issueCount},
+            severity = #{severity},
+            result_summary = #{resultSummary},
+            started_at = #{startedAt},
+            completed_at = #{completedAt},
+            error_message = #{errorMessage},
+            retry_count = #{retryCount}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM code_quality_task WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteByScanId">
+        DELETE FROM code_quality_task WHERE scan_id = #{scanId}
+    </delete>
+
+    <select id="findById" resultMap="taskResultMap">
+        SELECT * FROM code_quality_task WHERE id = #{id}
+    </select>
+
+    <select id="findByScanId" resultMap="taskResultMap">
+        SELECT * FROM code_quality_task WHERE scan_id = #{scanId} ORDER BY priority, id
+    </select>
+
+    <select id="findByServiceId" resultMap="taskResultMap">
+        SELECT * FROM code_quality_task WHERE service_id = #{serviceId} ORDER BY created_at DESC
+    </select>
+
+    <select id="findByStatus" resultMap="taskResultMap">
+        SELECT * FROM code_quality_task WHERE status = #{status} ORDER BY priority, created_at
+    </select>
+
+    <select id="findPendingTasks" resultMap="taskResultMap">
+        SELECT * FROM code_quality_task
+        WHERE scan_id = #{scanId} AND status = 'PENDING'
+        ORDER BY priority, id
+    </select>
+
+    <select id="findNextPendingTask" resultMap="taskResultMap">
+        SELECT * FROM code_quality_task
+        WHERE scan_id = #{scanId} AND status = 'PENDING'
+        ORDER BY priority, id
+        LIMIT 1
+    </select>
+
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO code_quality_task (
+            scan_id, service_id, service_name, check_item_id, check_item_key, check_item_name,
+            status, priority
+        ) VALUES
+        <foreach collection="tasks" item="task" separator=",">
+            (#{task.scanId}, #{task.serviceId}, #{task.serviceName}, #{task.checkItemId},
+             #{task.checkItemKey}, #{task.checkItemName}, #{task.status}, #{task.priority})
+        </foreach>
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE code_quality_task SET status = #{status}, updated_at = NOW() WHERE id = #{id}
+    </update>
+
+    <select id="countByScanIdAndStatus" resultType="int">
+        SELECT COUNT(*) FROM code_quality_task WHERE scan_id = #{scanId} AND status = #{status}
+    </select>
+
+    <select id="countCompletedByScanId" resultType="int">
+        SELECT COUNT(*) FROM code_quality_task
+        WHERE scan_id = #{scanId} AND status IN ('COMPLETED', 'FAILED')
+    </select>
+
+    <select id="countTotalByScanId" resultType="int">
+        SELECT COUNT(*) FROM code_quality_task WHERE scan_id = #{scanId}
+    </select>
+
+</mapper>

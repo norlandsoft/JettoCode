@@ -279,7 +279,7 @@ const loadingServices = ref(false)
 
 // 质量检查项
 const qualityCheckTree = ref<QualityCheckTreeDTO[]>([])
-const selectedCheckItems = ref<string[]>([])
+const selectedCheckItems = ref<number[]>([])
 
 const scanHistory = ref<CodeQualityScan[]>([])
 const loadingHistory = ref(false)
@@ -302,16 +302,17 @@ const serviceOptions = computed(() => {
 })
 
 // 将质量检查项转换为 TreeSelect 格式
+// value 使用 item.id 以便发送到后端
 const checkItemTreeData = computed(() => {
   return qualityCheckTree.value.map(group => ({
     title: group.groupName,
-    value: group.groupKey,
-    key: group.groupKey,
+    value: `group_${group.groupId}`,
+    key: `group_${group.groupId}`,
     selectable: false,
     children: (group.items || []).map(item => ({
       title: item.itemName,
-      value: item.itemKey,
-      key: item.itemKey
+      value: item.id,  // 使用 ID 而不是 key
+      key: item.id
     }))
   }))
 })
@@ -381,32 +382,30 @@ const handleScan = async () => {
     return
   }
 
+  // 过滤出真正的检查项ID（排除分组ID）
+  const checkItemIds = selectedCheckItems.value.filter(id => typeof id === 'number')
+
+  if (checkItemIds.length === 0) {
+    message.warning('请至少选择一个检查项')
+    return
+  }
+
   isScanning.value = true
-  let successCount = 0
-  let failCount = 0
 
-  for (const serviceId of selectedServiceIds.value) {
-    try {
-      const { data } = await codeQualityApi.startScan(serviceId, selectedCheckItems.value)
-      if (data.data?.id) {
-        scanningScanIds.value.push(data.data.id)
-        successCount++
-      }
-    } catch (error) {
-      console.error(error)
-      failCount++
+  try {
+    // 使用批量扫描 API
+    const { data } = await codeQualityApi.startBatchScan(selectedServiceIds.value, checkItemIds)
+    if (data.data?.id) {
+      scanningScanIds.value.push(data.data.id)
+      message.success('已启动扫描任务')
+      startProgressPolling()
     }
+  } catch (error: any) {
+    console.error(error)
+    message.error(error.response?.data?.message || '启动扫描失败')
+  } finally {
+    isScanning.value = false
   }
-
-  if (successCount > 0) {
-    message.success(`已启动 ${successCount} 个服务的扫描`)
-    startProgressPolling()
-  }
-  if (failCount > 0) {
-    message.error(`${failCount} 个服务扫描启动失败`)
-  }
-
-  isScanning.value = false
 }
 
 const startProgressPolling = () => {

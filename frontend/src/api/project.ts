@@ -176,8 +176,25 @@ export const codeQualityApi = {
     return api.get<ApiResponse<CodeQualityScan[]>>(`/code-quality/applications/${applicationId}/scans`)
   },
 
-  startScan(serviceId: number, checkItems?: string[]) {
-    return api.post<ApiResponse<CodeQualityScan>>(`/code-quality/services/${serviceId}/scan`, { checkItems })
+  startScan(serviceId: number, checkItemIds?: number[]) {
+    return api.post<ApiResponse<CodeQualityScan>>(`/code-quality/services/${serviceId}/scan`, { checkItemIds })
+  },
+
+  // 批量启动扫描
+  startBatchScan(serviceIds: number[], checkItemIds: number[]) {
+    return api.post<ApiResponse<CodeQualityScan>>(`/code-quality/scan`, null, {
+      params: { serviceIds: serviceIds.join(','), checkItemIds: checkItemIds.join(',') }
+    })
+  },
+
+  // 获取扫描任务列表
+  getScanTasks(scanId: number) {
+    return api.get<ApiResponse<any[]>>(`/code-quality/scans/${scanId}/tasks`)
+  },
+
+  // 获取扫描进度
+  getScanProgress(scanId: number) {
+    return api.get<ApiResponse<number>>(`/code-quality/scans/${scanId}/progress`)
   },
 
   getIssues(scanId: number, category?: string, severity?: string) {

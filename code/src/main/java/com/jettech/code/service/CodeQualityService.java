@@ -20,19 +20,22 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class CodeQualityService {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(CodeQualityService.class);
-    
+
     private final CodeQualityScanMapper scanMapper;
     private final CodeQualityIssueMapper issueMapper;
     private final ServiceMapper serviceMapper;
+    private final ScanTaskManager scanTaskManager;
 
     public CodeQualityService(CodeQualityScanMapper scanMapper,
                              CodeQualityIssueMapper issueMapper,
-                             ServiceMapper serviceMapper) {
+                             ServiceMapper serviceMapper,
+                             ScanTaskManager scanTaskManager) {
         this.scanMapper = scanMapper;
         this.issueMapper = issueMapper;
         this.serviceMapper = serviceMapper;
+        this.scanTaskManager = scanTaskManager;
     }
 
     public List<CodeQualityScan> getScans(Long serviceId) {
@@ -95,6 +98,51 @@ public class CodeQualityService {
         logger.info("Starting async code quality scan {} for service {}", scan.getId(), serviceId);
 
         executeScanAsync(scan.getId(), serviceId, localPath);
+
+        return scan;
+    }
+
+    /**
+     * 使用 OpenCode 服务启动扫描（新版本）
+     * 支持多个服务和多个检查项
+     */
+    public CodeQualityScan startScanWithCheckItems(List<Long> serviceIds, List<Long> checkItemIds) throws Exception {
+        if (serviceIds == null || serviceIds.isEmpty()) {
+            throw new IllegalArgumentException("至少需要选择一个服务");
+        }
+        if (checkItemIds == null || checkItemIds.isEmpty()) {
+            throw new IllegalArgumentException("至少需要选择一个检查项");
+        }
+
+        // 验证所有服务
+        for (Long serviceId : serviceIds) {
+            com.jettech.code.entity.ServiceEntity service = serviceMapper.findById(serviceId);
+            if (service == null) {
+                throw new IllegalArgumentException("服务不存在: " + serviceId);
+            }
+            if (service.getLocalPath() == null || service.getLocalPath().isEmpty()) {
+                throw new IllegalArgumentException("服务 " + service.getName() + " 未配置本地代码路径");
+            }
+        }
+
+        // 创建扫描记录（使用第一个服务作为主服务）
+        Long primaryServiceId = serviceIds.get(0);
+
+        CodeQualityScan scan = new CodeQualityScan();
+        scan.setServiceId(primaryServiceId);
+        scan.setStatus("IN_PROGRESS");
+        scan.setStartedAt(LocalDateTime.now());
+        scan.setCreatedAt(LocalDateTime.now());
+        scan.setCheckedCount(0);
+        scan.setProgress(0);
+        scan.setCurrentPhase("正在初始化...");
+        scanMapper.insert(scan);
+
+        logger.info("Starting OpenCode scan {} for {} services with {} check items",
+            scan.getId(), serviceIds.size(), checkItemIds.size());
+
+        // 异步执行扫描任务
+        scanTaskManager.executeScanAsync(scan.getId(), serviceIds, checkItemIds);
 
         return scan;
     }

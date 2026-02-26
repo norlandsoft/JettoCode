@@ -49,3 +49,11 @@ vulnerability:
       enabled: true
       api-url: https://services.nvd.nist.gov/restjson/cves/2.0
       api-key: ${NVD_API_KEY:}
+
+opencode:
+  base-url: ${OPENCODE_BASE_URL:http://127.0.0.1:4096}
+  model: ${OPENCODE_MODEL:claude-sonnet-4-6}
+  timeout: 300000
+  enabled: true
+  max-retries: 3
+  retry-interval: 5000
