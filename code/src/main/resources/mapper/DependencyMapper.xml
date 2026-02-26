@@ -35,7 +35,7 @@
         VALUES (#{serviceId}, #{name}, #{version}, #{groupId}, #{artifactId}, #{type}, #{scope}, #{license}, #{licenseStatus}, #{purl}, #{filePath}, #{checksum}, #{createdAt})
     </insert>
 
-    <insert id="batchInsert" parameterType="java.util.List">
+    <insert id="batchInsert" parameterType="java.util.List" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO dependency (service_id, name, version, group_id, artifact_id, type, scope, license, license_status, purl, file_path, checksum, created_at)
         VALUES
         <foreach collection="list" item="item" separator=",">

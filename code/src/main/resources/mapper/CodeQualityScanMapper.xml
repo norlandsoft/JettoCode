@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jettech.code.mapper.CodeQualityScanMapper">
+    <resultMap id="CodeQualityScanMap" type="com.jettech.code.entity.CodeQualityScan">
+        <id property="id" column="id"/>
+        <result property="serviceId" column="service_id"/>
+        <result property="status" column="status"/>
+        <result property="totalFiles" column="total_files"/>
+        <result property="totalIssues" column="total_issues"/>
+        <result property="securityIssues" column="security_issues"/>
+        <result property="reliabilityIssues" column="reliability_issues"/>
+        <result property="maintainabilityIssues" column="maintainability_issues"/>
+        <result property="codeSmellIssues" column="code_smell_issues"/>
+        <result property="blockerCount" column="blocker_count"/>
+        <result property="criticalCount" column="critical_count"/>
+        <result property="majorCount" column="major_count"/>
+        <result property="minorCount" column="minor_count"/>
+        <result property="infoCount" column="info_count"/>
+        <result property="qualityScore" column="quality_score"/>
+        <result property="securityScore" column="security_score"/>
+        <result property="reliabilityScore" column="reliability_score"/>
+        <result property="maintainabilityScore" column="maintainability_score"/>
+        <result property="reportPath" column="report_path"/>
+        <result property="startedAt" column="started_at"/>
+        <result property="completedAt" column="completed_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="checkedCount" column="checked_count"/>
+        <result property="currentPhase" column="current_phase"/>
+        <result property="currentFile" column="current_file"/>
+        <result property="progress" column="progress"/>
+    </resultMap>
+
+    <select id="findByServiceId" resultMap="CodeQualityScanMap">
+        SELECT * FROM code_quality_scan WHERE service_id = #{serviceId} ORDER BY created_at DESC
+    </select>
+
+    <select id="findById" resultMap="CodeQualityScanMap">
+        SELECT * FROM code_quality_scan WHERE id = #{id}
+    </select>
+
+    <select id="findLatestByServiceId" resultMap="CodeQualityScanMap">
+        SELECT * FROM code_quality_scan WHERE service_id = #{serviceId} ORDER BY created_at DESC LIMIT 1
+    </select>
+
+    <select id="findLatestByApplicationId" resultMap="CodeQualityScanMap">
+        SELECT s.* FROM code_quality_scan s
+        INNER JOIN service sv ON s.service_id = sv.id
+        WHERE sv.application_id = #{applicationId}
+        ORDER BY s.created_at DESC LIMIT 1
+    </select>
+
+    <select id="countByServiceIdAndStatus" resultType="int">
+        SELECT COUNT(*) FROM code_quality_scan WHERE service_id = #{serviceId} AND status = #{status}
+    </select>
+
+    <insert id="insert" parameterType="com.jettech.code.entity.CodeQualityScan" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO code_quality_scan (
+            service_id, status, total_files, total_issues,
+            security_issues, reliability_issues, maintainability_issues, code_smell_issues,
+            blocker_count, critical_count, major_count, minor_count, info_count,
+            quality_score, security_score, reliability_score, maintainability_score,
+            report_path, started_at, completed_at, created_at,
+            checked_count, current_phase, current_file, progress
+        ) VALUES (
+            #{serviceId}, #{status}, #{totalFiles}, #{totalIssues},
+            #{securityIssues}, #{reliabilityIssues}, #{maintainabilityIssues}, #{codeSmellIssues},
+            #{blockerCount}, #{criticalCount}, #{majorCount}, #{minorCount}, #{infoCount},
+            #{qualityScore}, #{securityScore}, #{reliabilityScore}, #{maintainabilityScore},
+            #{reportPath}, #{startedAt}, #{completedAt}, #{createdAt},
+            #{checkedCount}, #{currentPhase}, #{currentFile}, #{progress}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.jettech.code.entity.CodeQualityScan">
+        UPDATE code_quality_scan
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="totalFiles != null">total_files = #{totalFiles},</if>
+            <if test="totalIssues != null">total_issues = #{totalIssues},</if>
+            <if test="securityIssues != null">security_issues = #{securityIssues},</if>
+            <if test="reliabilityIssues != null">reliability_issues = #{reliabilityIssues},</if>
+            <if test="maintainabilityIssues != null">maintainability_issues = #{maintainabilityIssues},</if>
+            <if test="codeSmellIssues != null">code_smell_issues = #{codeSmellIssues},</if>
+            <if test="blockerCount != null">blocker_count = #{blockerCount},</if>
+            <if test="criticalCount != null">critical_count = #{criticalCount},</if>
+            <if test="majorCount != null">major_count = #{majorCount},</if>
+            <if test="minorCount != null">minor_count = #{minorCount},</if>
+            <if test="infoCount != null">info_count = #{infoCount},</if>
+            <if test="qualityScore != null">quality_score = #{qualityScore},</if>
+            <if test="securityScore != null">security_score = #{securityScore},</if>
+            <if test="reliabilityScore != null">reliability_score = #{reliabilityScore},</if>
+            <if test="maintainabilityScore != null">maintainability_score = #{maintainabilityScore},</if>
+            <if test="reportPath != null">report_path = #{reportPath},</if>
+            <if test="completedAt != null">completed_at = #{completedAt},</if>
+            <if test="checkedCount != null">checked_count = #{checkedCount},</if>
+            <if test="currentPhase != null">current_phase = #{currentPhase},</if>
+            <if test="currentFile != null">current_file = #{currentFile},</if>
+            <if test="progress != null">progress = #{progress},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByServiceId">
+        DELETE FROM code_quality_scan WHERE service_id = #{serviceId}
+    </delete>
+
+    <delete id="deleteById">
+        DELETE FROM code_quality_scan WHERE id = #{id}
+    </delete>
+</mapper>

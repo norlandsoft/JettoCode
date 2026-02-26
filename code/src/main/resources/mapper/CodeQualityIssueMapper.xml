@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jettech.code.mapper.CodeQualityIssueMapper">
+    <resultMap id="CodeQualityIssueMap" type="com.jettech.code.entity.CodeQualityIssue">
+        <id property="id" column="id"/>
+        <result property="scanId" column="scan_id"/>
+        <result property="filePath" column="file_path"/>
+        <result property="line" column="line"/>
+        <result property="column" column="`column`"/>
+        <result property="category" column="category"/>
+        <result property="severity" column="severity"/>
+        <result property="ruleId" column="rule_id"/>
+        <result property="ruleName" column="rule_name"/>
+        <result property="message" column="message"/>
+        <result property="suggestion" column="suggestion"/>
+        <result property="codeSnippet" column="code_snippet"/>
+        <result property="status" column="status"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findByScanId" resultMap="CodeQualityIssueMap">
+        SELECT * FROM code_quality_issue WHERE scan_id = #{scanId} ORDER BY 
+        CASE severity
+            WHEN 'BLOCKER' THEN 1
+            WHEN 'CRITICAL' THEN 2
+            WHEN 'MAJOR' THEN 3
+            WHEN 'MINOR' THEN 4
+            WHEN 'INFO' THEN 5
+            ELSE 6
+        END,
+        file_path, line
+    </select>
+
+    <select id="findById" resultMap="CodeQualityIssueMap">
+        SELECT * FROM code_quality_issue WHERE id = #{id}
+    </select>
+
+    <select id="findByScanIdAndCategory" resultMap="CodeQualityIssueMap">
+        SELECT * FROM code_quality_issue WHERE scan_id = #{scanId} AND category = #{category}
+        ORDER BY file_path, line
+    </select>
+
+    <select id="findByScanIdAndSeverity" resultMap="CodeQualityIssueMap">
+        SELECT * FROM code_quality_issue WHERE scan_id = #{scanId} AND severity = #{severity}
+        ORDER BY file_path, line
+    </select>
+
+    <select id="countByScanId" resultType="int">
+        SELECT COUNT(*) FROM code_quality_issue WHERE scan_id = #{scanId}
+    </select>
+
+    <select id="countByScanIdAndCategory" resultType="int">
+        SELECT COUNT(*) FROM code_quality_issue WHERE scan_id = #{scanId} AND category = #{category}
+    </select>
+
+    <select id="countByScanIdAndSeverity" resultType="int">
+        SELECT COUNT(*) FROM code_quality_issue WHERE scan_id = #{scanId} AND severity = #{severity}
+    </select>
+
+    <insert id="insert" parameterType="com.jettech.code.entity.CodeQualityIssue" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO code_quality_issue (
+            scan_id, file_path, line, `column`, category, severity,
+            rule_id, rule_name, message, suggestion, code_snippet, status, created_at
+        ) VALUES (
+            #{scanId}, #{filePath}, #{line}, #{column}, #{category}, #{severity},
+            #{ruleId}, #{ruleName}, #{message}, #{suggestion}, #{codeSnippet}, #{status}, #{createdAt}
+        )
+    </insert>
+
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO code_quality_issue (
+            scan_id, file_path, line, `column`, category, severity,
+            rule_id, rule_name, message, suggestion, code_snippet, status, created_at
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.scanId}, #{item.filePath}, #{item.line}, #{item.column}, #{item.category}, #{item.severity},
+             #{item.ruleId}, #{item.ruleName}, #{item.message}, #{item.suggestion}, #{item.codeSnippet}, #{item.status}, #{item.createdAt})
+        </foreach>
+    </insert>
+
+    <update id="update" parameterType="com.jettech.code.entity.CodeQualityIssue">
+        UPDATE code_quality_issue
+        <set>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByScanId">
+        DELETE FROM code_quality_issue WHERE scan_id = #{scanId}
+    </delete>
+
+    <delete id="deleteById">
+        DELETE FROM code_quality_issue WHERE id = #{id}
+    </delete>
+</mapper>

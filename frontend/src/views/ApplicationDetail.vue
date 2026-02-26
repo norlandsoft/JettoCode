@@ -122,8 +122,11 @@ const serviceForm = ref<CreateServiceRequest>({
   description: ''
 })
 
+const refreshServicesKey = ref(0)
+
 provide('application', application)
 provide('service', service)
+provide('refreshServicesKey', refreshServicesKey)
 
 const isServicePage = computed(() => !!route.params.serviceId)
 
@@ -155,6 +158,18 @@ const loadService = async () => {
   }
 }
 
+const refreshService = async () => {
+  const serviceId = route.params.serviceId
+  if (!serviceId) return
+  
+  try {
+    const { data } = await serviceApi.getById(Number(serviceId))
+    service.value = data.data
+  } catch (error) {
+    console.error(error)
+  }
+}
+
 watch(() => route.params.serviceId, loadService, { immediate: true })
 
 const handleAddService = async () => {
@@ -169,6 +184,7 @@ const handleAddService = async () => {
     message.success('添加成功')
     showAddServiceModal.value = false
     resetServiceForm()
+    refreshServicesKey.value++
   } catch (error) {
     console.error(error)
     message.error('添加失败')
@@ -193,6 +209,8 @@ const goToApplications = () => {
 const goToApplicationServices = () => {
   router.push(`/application/${applicationId}/services`)
 }
+
+provide('refreshService', refreshService)
 
 onMounted(() => {
   loadApplication()

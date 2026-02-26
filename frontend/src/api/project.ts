@@ -12,7 +12,9 @@ import type {
   CodeContent,
   Dependency,
   Vulnerability,
-  SecurityScan
+  SecurityScan,
+  CodeQualityScan,
+  CodeQualityIssue
 } from '@/types'
 
 export const applicationApi = {
@@ -136,6 +138,10 @@ export const supplyChainApi = {
     return api.post<ApiResponse<SecurityScan>>(`/supply-chain/services/${serviceId}/scan`)
   },
 
+  getScanProgress(scanId: number) {
+    return api.get<ApiResponse<SecurityScan>>(`/supply-chain/scans/${scanId}`)
+  },
+
   getVulnerabilities(dependencyId: number) {
     return api.get<ApiResponse<Vulnerability[]>>(`/supply-chain/dependencies/${dependencyId}/vulnerabilities`)
   },
@@ -146,5 +152,38 @@ export const supplyChainApi = {
 
   getLatestScanByApplication(applicationId: number) {
     return api.get<ApiResponse<SecurityScan>>(`/supply-chain/applications/${applicationId}/scans/latest`)
+  }
+}
+
+export const codeQualityApi = {
+  getScans(serviceId: number) {
+    return api.get<ApiResponse<CodeQualityScan[]>>(`/code-quality/services/${serviceId}/scans`)
+  },
+
+  getScan(scanId: number) {
+    return api.get<ApiResponse<CodeQualityScan>>(`/code-quality/scans/${scanId}`)
+  },
+
+  getLatestScan(serviceId: number) {
+    return api.get<ApiResponse<CodeQualityScan>>(`/code-quality/services/${serviceId}/scans/latest`)
+  },
+
+  getLatestScanByApplication(applicationId: number) {
+    return api.get<ApiResponse<CodeQualityScan>>(`/code-quality/applications/${applicationId}/scans/latest`)
+  },
+
+  startScan(serviceId: number) {
+    return api.post<ApiResponse<CodeQualityScan>>(`/code-quality/services/${serviceId}/scan`)
+  },
+
+  getIssues(scanId: number, category?: string, severity?: string) {
+    const params: Record<string, string> = {}
+    if (category) params.category = category
+    if (severity) params.severity = severity
+    return api.get<ApiResponse<CodeQualityIssue[]>>(`/code-quality/scans/${scanId}/issues`, { params })
+  },
+
+  getIssue(issueId: number) {
+    return api.get<ApiResponse<CodeQualityIssue>>(`/code-quality/issues/${issueId}`)
   }
 }

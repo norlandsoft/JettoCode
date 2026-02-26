@@ -284,6 +284,7 @@ import dayjs from 'dayjs'
 
 const route = useRoute()
 const service = inject<Ref<ServiceEntity | null>>('service')
+const refreshService = inject<() => void>('refreshService')
 
 const versions = ref<ServiceVersion[]>([])
 const loading = ref(false)
@@ -331,6 +332,7 @@ const handlePull = async () => {
   try {
     await serviceApi.pull(service.value.id)
     message.success('代码拉取成功')
+    refreshService?.()
   } catch (error) {
     console.error(error)
     message.error('代码拉取失败')

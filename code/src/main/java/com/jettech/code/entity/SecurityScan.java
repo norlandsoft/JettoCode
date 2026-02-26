@@ -21,4 +21,9 @@ public class SecurityScan {
     private LocalDateTime startedAt;
     private LocalDateTime completedAt;
     private LocalDateTime createdAt;
+    
+    private Integer checkedCount;
+    private String currentPhase;
+    private String currentDependency;
+    private Integer progress;
 }

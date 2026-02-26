@@ -93,6 +93,10 @@ CREATE TABLE IF NOT EXISTS security_scan (
     started_at DATETIME,
     completed_at DATETIME,
     created_at DATETIME NOT NULL,
+    checked_count INT DEFAULT 0,
+    current_phase VARCHAR(100),
+    current_dependency VARCHAR(255),
+    progress INT DEFAULT 0,
     FOREIGN KEY (service_id) REFERENCES service(id) ON DELETE CASCADE,
     INDEX idx_service_id (service_id),
     INDEX idx_status (status),
@@ -105,7 +109,7 @@ CREATE TABLE IF NOT EXISTS license_rule (
     license_type VARCHAR(100) NOT NULL,
     ecosystem VARCHAR(50),
     source VARCHAR(50),
-    created_at DATETIME NOT NULL,
+    created_at DATETIME NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS vulnerability_cache (
@@ -120,4 +124,59 @@ CREATE TABLE IF NOT EXISTS vulnerability_cache (
     INDEX idx_package_pattern (package_pattern),
     INDEX idx_ecosystem (ecosystem),
     INDEX idx_expires_at (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS code_quality_scan (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    service_id BIGINT NOT NULL,
+    status VARCHAR(50),
+    total_files INT DEFAULT 0,
+    total_issues INT DEFAULT 0,
+    security_issues INT DEFAULT 0,
+    reliability_issues INT DEFAULT 0,
+    maintainability_issues INT DEFAULT 0,
+    code_smell_issues INT DEFAULT 0,
+    blocker_count INT DEFAULT 0,
+    critical_count INT DEFAULT 0,
+    major_count INT DEFAULT 0,
+    minor_count INT DEFAULT 0,
+    info_count INT DEFAULT 0,
+    quality_score DOUBLE DEFAULT 0,
+    security_score DOUBLE DEFAULT 0,
+    reliability_score DOUBLE DEFAULT 0,
+    maintainability_score DOUBLE DEFAULT 0,
+    report_path VARCHAR(500),
+    started_at DATETIME,
+    completed_at DATETIME,
+    created_at DATETIME NOT NULL,
+    checked_count INT DEFAULT 0,
+    current_phase VARCHAR(100),
+    current_file VARCHAR(500),
+    progress INT DEFAULT 0,
+    FOREIGN KEY (service_id) REFERENCES service(id) ON DELETE CASCADE,
+    INDEX idx_service_id (service_id),
+    INDEX idx_status (status),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS code_quality_issue (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    scan_id BIGINT NOT NULL,
+    file_path VARCHAR(500),
+    line INT,
+    `column` INT,
+    category VARCHAR(50),
+    severity VARCHAR(50),
+    rule_id VARCHAR(100),
+    rule_name VARCHAR(255),
+    message TEXT,
+    suggestion TEXT,
+    code_snippet TEXT,
+    status VARCHAR(50),
+    created_at DATETIME NOT NULL,
+    FOREIGN KEY (scan_id) REFERENCES code_quality_scan(id) ON DELETE CASCADE,
+    INDEX idx_scan_id (scan_id),
+    INDEX idx_category (category),
+    INDEX idx_severity (severity),
+    INDEX idx_file_path (file_path(255))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

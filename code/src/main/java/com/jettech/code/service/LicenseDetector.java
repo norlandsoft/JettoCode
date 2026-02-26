@@ -184,6 +184,9 @@ public class LicenseDetector {
                 case "pypi":
                     license = detectFromPyPIRegistry(dependency.getName());
                     break;
+                case "maven":
+                    license = detectFromMavenCentral(dependency.getGroupId(), dependency.getArtifactId());
+                    break;
                 default:
                     break;
             }
@@ -238,6 +241,50 @@ public class LicenseDetector {
         return null;
     }
     
+    private String detectFromMavenCentral(String groupId, String artifactId) {
+        if (groupId == null || artifactId == null) {
+            return null;
+        }
+        
+        try {
+            String groupPath = groupId.replace('.', '/');
+            String url = "https://repo1.maven.org/maven2/" + groupPath + "/" + artifactId + "/maven-metadata.xml";
+            String response = restTemplate.getForObject(url, String.class);
+            
+            if (response != null) {
+                Pattern versionPattern = Pattern.compile("<latest>([^<]+)</latest>");
+                Matcher matcher = versionPattern.matcher(response);
+                if (matcher.find()) {
+                    String latestVersion = matcher.group(1);
+                    return fetchMavenLicense(groupId, artifactId, latestVersion);
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Maven Central lookup failed for {}:{}: {}", groupId, artifactId, e.getMessage());
+        }
+        return null;
+    }
+    
+    private String fetchMavenLicense(String groupId, String artifactId, String version) {
+        try {
+            String groupPath = groupId.replace('.', '/');
+            String url = "https://repo1.maven.org/maven2/" + groupPath + "/" + artifactId + "/" + version + "/" + artifactId + "-" + version + ".pom";
+            String response = restTemplate.getForObject(url, String.class);
+            
+            if (response != null) {
+                Pattern licensePattern = Pattern.compile("<license>\\s*<name>([^<]+)</name>", Pattern.DOTALL);
+                Matcher matcher = licensePattern.matcher(response);
+                if (matcher.find()) {
+                    String license = matcher.group(1).trim();
+                    return normalizeLicense(license);
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Failed to fetch Maven POM for {}:{}:{}: {}", groupId, artifactId, version, e.getMessage());
+        }
+        return null;
+    }
+    
     private String detectFromRules(Dependency dependency) {
         List<LicenseRule> rules = licenseRuleMapper.findAll();
         String packageName = dependency.getName();
@@ -270,11 +317,70 @@ public class LicenseDetector {
         if (lowerName.contains("jackson")) return "Apache-2.0";
         if (lowerName.contains("slf4j")) return "MIT";
         if (lowerName.contains("log4j")) return "Apache-2.0";
+        if (lowerName.contains("logback")) return "EPL-1.0";
         if (lowerName.contains("junit")) return "EPL-1.0";
         if (lowerName.contains("mockito")) return "MIT";
         if (lowerName.contains("hibernate")) return "LGPL-2.1";
         if (lowerName.contains("tomcat")) return "Apache-2.0";
         if (lowerName.contains("netty")) return "Apache-2.0";
+        if (lowerName.contains("guava")) return "Apache-2.0";
+        if (lowerName.contains("gson")) return "Apache-2.0";
+        if (lowerName.contains("okhttp")) return "Apache-2.0";
+        if (lowerName.contains("retrofit")) return "Apache-2.0";
+        if (lowerName.contains("dagger")) return "Apache-2.0";
+        if (lowerName.contains("jwt")) return "Apache-2.0";
+        if (lowerName.contains("mybatis")) return "Apache-2.0";
+        if (lowerName.contains("druid")) return "Apache-2.0";
+        if (lowerName.contains("hikari")) return "Apache-2.0";
+        if (lowerName.contains("flyway")) return "Apache-2.0";
+        if (lowerName.contains("liquibase")) return "Apache-2.0";
+        if (lowerName.contains("quartz")) return "Apache-2.0";
+        if (lowerName.contains("jjwt")) return "Apache-2.0";
+        if (lowerName.contains("swagger")) return "Apache-2.0";
+        if (lowerName.contains("lombok")) return "MIT";
+        if (lowerName.contains("mapstruct")) return "Apache-2.0";
+        if (lowerName.contains("poi")) return "Apache-2.0";
+        if (lowerName.contains("pdfbox")) return "Apache-2.0";
+        if (lowerName.contains("tika")) return "Apache-2.0";
+        if (lowerName.contains("zookeeper")) return "Apache-2.0";
+        if (lowerName.contains("kafka")) return "Apache-2.0";
+        if (lowerName.contains("rocketmq")) return "Apache-2.0";
+        if (lowerName.contains("dubbo")) return "Apache-2.0";
+        if (lowerName.contains("curator")) return "Apache-2.0";
+        if (lowerName.contains("thrift")) return "Apache-2.0";
+        if (lowerName.contains("grpc")) return "Apache-2.0";
+        if (lowerName.contains("protobuf")) return "BSD-3-Clause";
+        if (lowerName.contains("snappy")) return "BSD-3-Clause";
+        if (lowerName.contains("lz4")) return "Apache-2.0";
+        if (lowerName.contains("jna")) return "Apache-2.0";
+        if (lowerName.contains("jni")) return "Apache-2.0";
+        if (lowerName.contains("hadoop")) return "Apache-2.0";
+        if (lowerName.contains("spark")) return "Apache-2.0";
+        if (lowerName.contains("flink")) return "Apache-2.0";
+        if (lowerName.contains("elasticsearch")) return "Apache-2.0";
+        if (lowerName.contains("lucene")) return "Apache-2.0";
+        if (lowerName.contains("solr")) return "Apache-2.0";
+        if (lowerName.contains("jedis")) return "MIT";
+        if (lowerName.contains("lettuce")) return "Apache-2.0";
+        if (lowerName.contains("mongo")) return "Apache-2.0";
+        if (lowerName.contains("postgresql")) return "PostgreSQL";
+        if (lowerName.contains("mysql")) return "GPL-2.0";
+        if (lowerName.contains("mariadb")) return "LGPL-2.1";
+        if (lowerName.contains("h2")) return "MPL-2.0";
+        if (lowerName.contains("hsqldb")) return "BSD-3-Clause";
+        if (lowerName.contains("derby")) return "Apache-2.0";
+        if (lowerName.contains("oshi")) return "MIT";
+        if (lowerName.contains("javassist")) return "Apache-2.0";
+        if (lowerName.contains("cglib")) return "Apache-2.0";
+        if (lowerName.contains("asm")) return "BSD-3-Clause";
+        if (lowerName.contains("bytebuddy")) return "Apache-2.0";
+        if (lowerName.contains("reflections")) return "WTFPL";
+        if (lowerName.contains("joda")) return "Apache-2.0";
+        if (lowerName.contains("threeten")) return "BSD-3-Clause";
+        if (lowerName.contains("icu4j")) return "ICU";
+        if (lowerName.contains("bouncycastle") || lowerName.contains("bcprov")) return "MIT";
+        if (lowerName.contains("crypto") || lowerName.contains("cipher")) return "Apache-2.0";
+        if (lowerName.contains("selenium")) return "Apache-2.0";
         
         if (lowerName.contains("react")) return "MIT";
         if (lowerName.contains("vue")) return "MIT";
@@ -299,12 +405,11 @@ public class LicenseDetector {
         if (lowerName.contains("flask")) return "BSD-3-Clause";
         if (lowerName.contains("scipy")) return "BSD-3-Clause";
         if (lowerName.contains("pytest")) return "MIT";
-        if (lowerName.contains("selenium")) return "Apache-2.0";
         if (lowerName.contains("pillow")) return "PIL";
         if (lowerName.contains("sqlalchemy")) return "MIT";
         if (lowerName.contains("celery")) return "BSD-3-Clause";
         if (lowerName.contains("redis")) return "MIT";
-        if (lowerName.contains("psycopg")) return("LGPL-3.0");
+        if (lowerName.contains("psycopg")) return "LGPL-3.0";
         
         if (lowerName.contains("gin")) return "MIT";
         if (lowerName.contains("echo")) return "MIT";
@@ -321,18 +426,43 @@ public class LicenseDetector {
         
         license = license.trim();
         
-        Map<String, String> normalizations = Map.of(
-            "MIT License", "MIT",
-            "Apache License 2.0", "Apache-2.0",
-            "Apache-2", "Apache-2.0",
-            "BSD 3-Clause", "BSD-3-Clause",
-            "BSD 2-Clause", "BSD-2-Clause",
-            "ISC License", "ISC",
-            "GPL-3", "GPL-3.0",
-            "LGPL-3", "LGPL-3.0"
-        );
+        Map<String, String> normalizations = new HashMap<>();
+        normalizations.put("MIT License", "MIT");
+        normalizations.put("The MIT License", "MIT");
+        normalizations.put("Apache License 2.0", "Apache-2.0");
+        normalizations.put("Apache License, Version 2.0", "Apache-2.0");
+        normalizations.put("The Apache Software License, Version 2.0", "Apache-2.0");
+        normalizations.put("Apache-2", "Apache-2.0");
+        normalizations.put("BSD 3-Clause", "BSD-3-Clause");
+        normalizations.put("BSD 2-Clause", "BSD-2-Clause");
+        normalizations.put("The BSD License", "BSD-3-Clause");
+        normalizations.put("ISC License", "ISC");
+        normalizations.put("GPL-3", "GPL-3.0");
+        normalizations.put("LGPL-3", "LGPL-3.0");
+        normalizations.put("GNU Lesser General Public License, Version 2.1", "LGPL-2.1");
+        normalizations.put("CDDL 1.0", "CDDL-1.0");
+        normalizations.put("Common Development and Distribution License 1.0", "CDDL-1.0");
+        normalizations.put("EPL 1.0", "EPL-1.0");
+        normalizations.put("Eclipse Public License 1.0", "EPL-1.0");
+        normalizations.put("Eclipse Public License - v 1.0", "EPL-1.0");
+        normalizations.put("Eclipse Public License v2.0", "EPL-2.0");
+        normalizations.put("Mozilla Public License 1.1", "MPL-1.1");
+        normalizations.put("Mozilla Public License 2.0", "MPL-2.0");
+        normalizations.put("PostgreSQL License", "PostgreSQL");
+        normalizations.put("The PostgreSQL License", "PostgreSQL");
         
-        return normalizations.getOrDefault(license, license);
+        String result = normalizations.get(license);
+        if (result != null) {
+            return result;
+        }
+        
+        for (Map.Entry<String, String> entry : normalizations.entrySet()) {
+            if (license.contains(entry.getKey()) || entry.getKey().contains(license)) {
+                return entry.getValue();
+            }
+        }
+        
+        return license;
     }
     
     private String determineLicenseStatus(String license) {

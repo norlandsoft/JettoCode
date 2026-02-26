@@ -44,6 +44,12 @@
               </template>
               <span>供应链安全</span>
             </a-menu-item>
+            <a-menu-item key="/code-quality" class="nav-item">
+              <template #icon>
+                <CodeOutlined />
+              </template>
+              <span>代码质量</span>
+            </a-menu-item>
           </a-menu>
         </div>
       </nav>
@@ -71,7 +77,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { AppstoreOutlined, MenuFoldOutlined, MenuUnfoldOutlined, SafetyOutlined } from '@ant-design/icons-vue'
+import { AppstoreOutlined, MenuFoldOutlined, MenuUnfoldOutlined, SafetyOutlined, CodeOutlined } from '@ant-design/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -86,6 +92,9 @@ const activeMenu = computed(() => {
   }
   if (path.includes('/supply-chain')) {
     return '/supply-chain'
+  }
+  if (path.includes('/code-quality')) {
+    return '/code-quality'
   }
   return path
 })

@@ -185,4 +185,54 @@ export interface SecurityScan {
   startedAt: string
   completedAt: string
   createdAt: string
+  checkedCount: number
+  currentPhase: string
+  currentDependency: string
+  progress: number
+}
+
+export interface CodeQualityScan {
+  id: number
+  serviceId: number
+  status: string
+  totalFiles: number
+  totalIssues: number
+  securityIssues: number
+  reliabilityIssues: number
+  maintainabilityIssues: number
+  codeSmellIssues: number
+  blockerCount: number
+  criticalCount: number
+  majorCount: number
+  minorCount: number
+  infoCount: number
+  qualityScore: number
+  securityScore: number
+  reliabilityScore: number
+  maintainabilityScore: number
+  reportPath: string
+  startedAt: string
+  completedAt: string
+  createdAt: string
+  checkedCount: number
+  currentPhase: string
+  currentFile: string
+  progress: number
+}
+
+export interface CodeQualityIssue {
+  id: number
+  scanId: number
+  filePath: string
+  line: number
+  column: number
+  category: string
+  severity: string
+  ruleId: string
+  ruleName: string
+  message: string
+  suggestion: string
+  codeSnippet: string
+  status: string
+  createdAt: string
 }

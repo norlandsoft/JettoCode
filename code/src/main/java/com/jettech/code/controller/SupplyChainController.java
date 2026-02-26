@@ -59,15 +59,24 @@ public class SupplyChainController {
         }
         return ResponseEntity.ok(ApiResponse.success(scan));
     }
+    
+    @GetMapping("/scans/{scanId}")
+    public ResponseEntity<ApiResponse<SecurityScan>> getScanProgress(@PathVariable Long scanId) {
+        SecurityScan scan = supplyChainService.getScanById(scanId);
+        if (scan == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(ApiResponse.success(scan));
+    }
 
     @PostMapping("/services/{serviceId}/scan")
-    public ResponseEntity<ApiResponse<SecurityScan>> performScan(@PathVariable Long serviceId) {
+    public ResponseEntity<ApiResponse<SecurityScan>> startScan(@PathVariable Long serviceId) {
         try {
-            SecurityScan scan = supplyChainService.performSecurityScan(serviceId);
-            return ResponseEntity.ok(ApiResponse.success("安全扫描完成", scan));
+            SecurityScan scan = supplyChainService.startSecurityScan(serviceId);
+            return ResponseEntity.ok(ApiResponse.success("扫描已启动", scan));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("安全扫描失败: " + e.getMessage()));
+                    .body(ApiResponse.error("启动扫描失败: " + e.getMessage()));
         }
     }
 

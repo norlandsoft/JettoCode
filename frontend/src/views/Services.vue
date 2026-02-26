@@ -151,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, inject, watch, type Ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { serviceApi } from '@/api/project'
 import type { ServiceEntity } from '@/types'
@@ -184,6 +184,8 @@ const editForm = ref({
   description: ''
 })
 
+const refreshServicesKey = inject<Ref<number>>('refreshServicesKey')
+
 const loadServices = async () => {
   loading.value = true
   try {
@@ -196,6 +198,10 @@ const loadServices = async () => {
     loading.value = false
   }
 }
+
+watch(refreshServicesKey!, () => {
+  loadServices()
+})
 
 const handleMenuClick = (key: string, service: ServiceEntity) => {
   if (key === 'edit') {

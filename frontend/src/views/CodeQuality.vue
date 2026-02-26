@@ -1,8 +1,8 @@
 <template>
-  <div class="supply-chain-security">
+  <div class="code-quality">
     <div class="page-header">
-      <h1>供应链安全</h1>
-      <p>软件物料清单(SBOM)管理与安全扫描</p>
+      <h1>代码质量</h1>
+      <p>代码安全、可靠性、可维护性检查</p>
     </div>
 
     <div class="content">
@@ -22,7 +22,7 @@
 
       <div v-if="selectedApplicationId" class="scan-section">
         <div class="section-header">
-          <h2>安全扫描</h2>
+          <h2>质量扫描</h2>
           <button class="btn btn-primary" @click="showScanModal = true" :disabled="loadingServices">
             <ScanOutlined />
             开始扫描
@@ -36,50 +36,81 @@
               <a-progress :percent="latestScan.progress || 0" :status="'active'" />
               <div class="progress-info">
                 <span class="phase">{{ latestScan.currentPhase }}</span>
-                <span class="count">{{ latestScan.checkedCount || 0 }} / {{ latestScan.totalDependencies || 0 }}</span>
+                <span class="count">{{ latestScan.checkedCount || 0 }} / {{ latestScan.totalFiles || 0 }} 文件</span>
               </div>
-              <div v-if="latestScan.currentDependency" class="current-dep">
-                正在检查: {{ latestScan.currentDependency }}
+              <div v-if="latestScan.currentFile" class="current-dep">
+                正在检查: {{ latestScan.currentFile }}
               </div>
             </div>
           </div>
 
-          <div class="summary-card">
-            <div class="card-title">扫描概览</div>
+          <div class="summary-card score-card">
+            <div class="card-title">质量评分</div>
             <div class="card-content">
-              <div class="stat-item">
-                <span class="stat-label">总依赖数</span>
-                <span class="stat-value">{{ latestScan.totalDependencies }}</span>
+              <div class="score-circle">
+                <a-progress type="circle" :percent="Math.round(latestScan.qualityScore || 0)" :width="80" />
               </div>
-              <div class="stat-item">
-                <span class="stat-label">漏洞依赖数</span>
-                <span class="stat-value danger">{{ latestScan.vulnerableDependencies }}</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">许可证违规</span>
-                <span class="stat-value warning">{{ latestScan.licenseViolationCount }}</span>
+              <div class="score-breakdown">
+                <div class="score-item">
+                  <span class="score-label">安全</span>
+                  <span class="score-value">{{ Math.round(latestScan.securityScore || 0) }}</span>
+                </div>
+                <div class="score-item">
+                  <span class="score-label">可靠性</span>
+                  <span class="score-value">{{ Math.round(latestScan.reliabilityScore || 0) }}</span>
+                </div>
+                <div class="score-item">
+                  <span class="score-label">可维护性</span>
+                  <span class="score-value">{{ Math.round(latestScan.maintainabilityScore || 0) }}</span>
+                </div>
               </div>
             </div>
           </div>
 
           <div class="summary-card">
-            <div class="card-title">漏洞统计</div>
+            <div class="card-title">问题分类</div>
+            <div class="card-content category-stats">
+              <div class="stat-item security">
+                <span class="stat-label">安全问题</span>
+                <span class="stat-value">{{ latestScan.securityIssues }}</span>
+              </div>
+              <div class="stat-item reliability">
+                <span class="stat-label">可靠性问题</span>
+                <span class="stat-value">{{ latestScan.reliabilityIssues }}</span>
+              </div>
+              <div class="stat-item maintainability">
+                <span class="stat-label">可维护性问题</span>
+                <span class="stat-value">{{ latestScan.maintainabilityIssues }}</span>
+              </div>
+              <div class="stat-item smell">
+                <span class="stat-label">代码异味</span>
+                <span class="stat-value">{{ latestScan.codeSmellIssues }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="summary-card">
+            <div class="card-title">严重程度</div>
             <div class="card-content severity-stats">
+              <div class="stat-item blocker">
+                <span class="stat-label">阻塞</span>
+                <span class="stat-value">{{ latestScan.blockerCount }}</span>
+              </div>
               <div class="stat-item critical">
                 <span class="stat-label">严重</span>
                 <span class="stat-value">{{ latestScan.criticalCount }}</span>
               </div>
-              <div class="stat-item high">
-                <span class="stat-label">高危</span>
-                <span class="stat-value">{{ latestScan.highCount }}</span>
+              <div class="stat-item major">
+                <span class="stat-label">主要</span>
+                <span class="stat-value">{{ latestScan.majorCount }}</span>
               </div>
-              <div class="stat-item medium">
-                <span class="stat-label">中危</span>
-                <span class="stat-value">{{ latestScan.mediumCount }}</span>
+              <div class="stat-item minor">
+                <span class="stat-label">次要</span>
+                <span class="stat-value">{{ latestScan.minorCount }}</span>
               </div>
-              <div class="stat-item low">
-                <span class="stat-label">低危</span>
-                <span class="stat-value">{{ latestScan.lowCount }}</span>
+              <div class="stat-item info">
+                <span class="stat-label">提示</span>
+                <span class="stat-value">{{ latestScan.infoCount }}</span>
               </div>
             </div>
           </div>
@@ -103,92 +134,56 @@
 
         <div v-else class="no-scan">
           <FileSearchOutlined class="empty-icon" />
-          <p>暂无扫描记录，点击"开始扫描"进行安全检查</p>
+          <p>暂无扫描记录，点击"开始扫描"进行代码质量检查</p>
         </div>
-      </div>
 
-      <div v-if="selectedApplicationId && dependencies.length > 0" class="sbom-section">
-        <div class="section-header">
-          <h2>软件物料清单 (SBOM)</h2>
-          <div class="filter-group">
-            <a-input-search
-              v-model:value="searchText"
-              placeholder="搜索依赖"
-              style="width: 200px"
-            />
-            <a-select v-model:value="licenseFilter" style="width: 150px" placeholder="许可证状态">
-              <a-select-option value="">全部</a-select-option>
-              <a-select-option value="APPROVED">已批准</a-select-option>
-              <a-select-option value="VIOLATION">违规</a-select-option>
-              <a-select-option value="UNKNOWN">未知</a-select-option>
-            </a-select>
+        <div v-if="latestScan && latestScan.status === 'COMPLETED' && issues.length > 0" class="issues-section">
+          <div class="section-header">
+            <h2>问题列表</h2>
+            <div class="filter-group">
+              <a-select v-model:value="categoryFilter" style="width: 150px" placeholder="问题分类" allowClear>
+                <a-select-option value="SECURITY">安全问题</a-select-option>
+                <a-select-option value="RELIABILITY">可靠性问题</a-select-option>
+                <a-select-option value="MAINTAINABILITY">可维护性问题</a-select-option>
+                <a-select-option value="CODE_SMELL">代码异味</a-select-option>
+              </a-select>
+              <a-select v-model:value="severityFilter" style="width: 120px" placeholder="严重程度" allowClear>
+                <a-select-option value="BLOCKER">阻塞</a-select-option>
+                <a-select-option value="CRITICAL">严重</a-select-option>
+                <a-select-option value="MAJOR">主要</a-select-option>
+                <a-select-option value="MINOR">次要</a-select-option>
+                <a-select-option value="INFO">提示</a-select-option>
+              </a-select>
+            </div>
+          </div>
+
+          <div class="issues-list">
+            <div v-for="issue in filteredIssues" :key="issue.id" class="issue-item">
+              <div class="issue-header">
+                <span :class="['severity-badge', issue.severity.toLowerCase()]">
+                  {{ issue.severity }}
+                </span>
+                <span :class="['category-badge', issue.category.toLowerCase()]">
+                  {{ getCategoryText(issue.category) }}
+                </span>
+                <span class="rule-id">{{ issue.ruleId }}</span>
+              </div>
+              <div class="issue-body">
+                <div class="issue-title">{{ issue.ruleName }}</div>
+                <div class="issue-message">{{ issue.message }}</div>
+                <div class="issue-location">
+                  <FileOutlined />
+                  <span>{{ getShortPath(issue.filePath) }}:{{ issue.line }}</span>
+                </div>
+                <div v-if="issue.codeSnippet" class="issue-code">
+                  <code>{{ issue.codeSnippet }}</code>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-
-        <a-table
-          :columns="columns"
-          :data-source="filteredDependencies"
-          :loading="loading"
-          :pagination="{ pageSize: 20 }"
-          row-key="id"
-          class="dependency-table"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'name'">
-              <div class="dep-name">
-                <span>{{ record.name }}</span>
-                <span class="dep-version">{{ record.version }}</span>
-              </div>
-            </template>
-            <template v-else-if="column.key === 'licenseStatus'">
-              <a-tag :color="getLicenseStatusColor(record.licenseStatus)">
-                {{ getLicenseStatusText(record.licenseStatus) }}
-              </a-tag>
-            </template>
-            <template v-else-if="column.key === 'vulnerabilities'">
-              <a-button type="link" size="small" @click="showVulnerabilities(record)" :disabled="!record.vulnerabilityCount">
-                {{ record.vulnerabilityCount || 0 }} 个漏洞
-              </a-button>
-            </template>
-          </template>
-        </a-table>
       </div>
     </div>
-
-    <a-modal
-      v-model:open="vulnerabilityModalVisible"
-      title="漏洞详情"
-      width="800px"
-      :footer="null"
-    >
-      <div v-if="loadingVulnerabilities" class="loading-container">
-        <a-spin />
-      </div>
-      <div v-else-if="currentVulnerabilities.length === 0" class="no-data">
-        暂无漏洞信息
-      </div>
-      <div v-else class="vulnerability-list">
-        <div v-for="vuln in currentVulnerabilities" :key="vuln.id" class="vulnerability-item">
-          <div class="vuln-header">
-            <span :class="['severity-badge', vuln.severity.toLowerCase()]">
-              {{ vuln.severity }}
-            </span>
-            <span class="cve-id">{{ vuln.cveId }}</span>
-            <span class="cvss-score">CVSS: {{ vuln.cvssScore }}</span>
-          </div>
-          <h4 class="vuln-title">{{ vuln.title }}</h4>
-          <p class="vuln-description">{{ vuln.description }}</p>
-          <div class="vuln-details">
-            <div class="detail-item">
-              <strong>受影响版本：</strong>{{ vuln.affectedVersion }}
-            </div>
-            <div class="detail-item">
-              <strong>修复版本：</strong>{{ vuln.fixedVersion }}
-            </div>
-          </div>
-        </div>
-      </div>
-    </a-modal>
 
     <a-modal
       v-model:open="showScanModal"
@@ -220,23 +215,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { message } from 'ant-design-vue'
-import type { Application, ServiceEntity, Dependency, Vulnerability, SecurityScan } from '@/types'
-import { applicationApi, serviceApi, supplyChainApi } from '@/api/project'
-import { ScanOutlined, LoadingOutlined, FileSearchOutlined } from '@ant-design/icons-vue'
+import type { Application, ServiceEntity, CodeQualityScan, CodeQualityIssue } from '@/types'
+import { applicationApi, serviceApi, codeQualityApi } from '@/api/project'
+import { ScanOutlined, FileSearchOutlined, FileOutlined } from '@ant-design/icons-vue'
 
 const applications = ref<Application[]>([])
 const selectedApplicationId = ref<number | null>(null)
-const dependencies = ref<Dependency[]>([])
-const latestScan = ref<SecurityScan | null>(null)
+const latestScan = ref<CodeQualityScan | null>(null)
+const issues = ref<CodeQualityIssue[]>([])
 const loading = ref(false)
 const scanning = ref(false)
-const searchText = ref('')
-const licenseFilter = ref('')
-const vulnerabilityModalVisible = ref(false)
-const currentVulnerabilities = ref<Vulnerability[]>([])
-const loadingVulnerabilities = ref(false)
+const categoryFilter = ref<string | undefined>(undefined)
+const severityFilter = ref<string | undefined>(undefined)
 
 const showScanModal = ref(false)
 const applicationServices = ref<ServiceEntity[]>([])
@@ -246,30 +238,18 @@ const selectedServiceIds = ref<number[]>([])
 const scanningScanIds = ref<number[]>([])
 let progressPollingTimer: ReturnType<typeof setInterval> | null = null
 
-const columns = [
-  { title: '依赖名称', key: 'name', dataIndex: 'name', sorter: true },
-  { title: '类型', dataIndex: 'type', width: 100 },
-  { title: '许可证', dataIndex: 'license', width: 150 },
-  { title: '许可证状态', key: 'licenseStatus', width: 120 },
-  { title: '漏洞', key: 'vulnerabilities', width: 100 }
-]
-
-const filteredDependencies = computed(() => {
-  let deps = dependencies.value
+const filteredIssues = computed(() => {
+  let result = issues.value
   
-  if (searchText.value) {
-    const search = searchText.value.toLowerCase()
-    deps = deps.filter(d => 
-      d.name.toLowerCase().includes(search) ||
-      d.license?.toLowerCase().includes(search)
-    )
+  if (categoryFilter.value) {
+    result = result.filter(i => i.category === categoryFilter.value)
   }
   
-  if (licenseFilter.value) {
-    deps = deps.filter(d => d.licenseStatus === licenseFilter.value)
+  if (severityFilter.value) {
+    result = result.filter(i => i.severity === severityFilter.value)
   }
   
-  return deps
+  return result
 })
 
 const loadApplications = async () => {
@@ -304,23 +284,30 @@ const handleApplicationChange = async () => {
   loading.value = true
   loadApplicationServices()
   try {
-    const [depRes, scanRes] = await Promise.all([
-      supplyChainApi.getDependenciesByApplication(selectedApplicationId.value),
-      supplyChainApi.getLatestScanByApplication(selectedApplicationId.value)
-    ])
+    const { data } = await codeQualityApi.getLatestScanByApplication(selectedApplicationId.value)
+    latestScan.value = data.data
     
-    dependencies.value = depRes.data.data
-    latestScan.value = scanRes.data.data
-    
-    if (scanRes.data.data?.status === 'IN_PROGRESS' && scanRes.data.data?.id) {
-      scanningScanIds.value = [scanRes.data.data.id]
+    if (data.data?.status === 'IN_PROGRESS' && data.data?.id) {
+      scanningScanIds.value = [data.data.id]
       startProgressPolling()
+    } else if (data.data?.id) {
+      loadIssues(data.data.id)
     }
   } catch (error) {
     console.error(error)
     message.error('加载数据失败')
   } finally {
     loading.value = false
+  }
+}
+
+const loadIssues = async (scanId: number) => {
+  try {
+    const { data } = await codeQualityApi.getIssues(scanId)
+    issues.value = data.data
+  } catch (error) {
+    console.error(error)
+    issues.value = []
   }
 }
 
@@ -336,7 +323,7 @@ const handleScan = async () => {
   
   for (const serviceId of selectedServiceIds.value) {
     try {
-      const { data } = await supplyChainApi.performScan(serviceId)
+      const { data } = await codeQualityApi.startScan(serviceId)
       if (data.data?.id) {
         scanningScanIds.value.push(data.data.id)
       }
@@ -374,7 +361,7 @@ const startProgressPolling = () => {
     
     for (const scanId of scanningScanIds.value) {
       try {
-        const { data } = await supplyChainApi.getScanProgress(scanId)
+        const { data } = await codeQualityApi.getScan(scanId)
         const scan = data.data
         
         if (latestScan.value?.id === scanId) {
@@ -385,7 +372,8 @@ const startProgressPolling = () => {
           completedIds.push(scanId)
           
           if (scan.status === 'COMPLETED') {
-            message.success(`扫描完成: 发现 ${scan.vulnerableDependencies || 0} 个有漏洞的依赖`)
+            message.success(`扫描完成: 发现 ${scan.totalIssues || 0} 个问题`)
+            loadIssues(scanId)
           } else {
             message.error(`扫描失败`)
           }
@@ -397,11 +385,6 @@ const startProgressPolling = () => {
     }
     
     scanningScanIds.value = scanningScanIds.value.filter(id => !completedIds.includes(id))
-    
-    if (completedIds.length > 0 && selectedApplicationId.value) {
-      const depRes = await supplyChainApi.getDependenciesByApplication(selectedApplicationId.value)
-      dependencies.value = depRes.data.data
-    }
     
     if (scanningScanIds.value.length === 0) {
       stopProgressPolling()
@@ -421,38 +404,20 @@ const cancelScan = () => {
   selectedServiceIds.value = []
 }
 
-const showVulnerabilities = async (dependency: Dependency) => {
-  vulnerabilityModalVisible.value = true
-  loadingVulnerabilities.value = true
-  
-  try {
-    const { data } = await supplyChainApi.getVulnerabilities(dependency.id)
-    currentVulnerabilities.value = data.data
-  } catch (error) {
-    console.error(error)
-    message.error('加载漏洞信息失败')
-    currentVulnerabilities.value = []
-  } finally {
-    loadingVulnerabilities.value = false
-  }
+const getShortPath = (path: string) => {
+  if (!path) return ''
+  const parts = path.split('/')
+  return parts.slice(-3).join('/')
 }
 
-const getLicenseStatusColor = (status: string) => {
-  const colors: Record<string, string> = {
-    APPROVED: 'green',
-    VIOLATION: 'red',
-    UNKNOWN: 'orange'
-  }
-  return colors[status] || 'default'
-}
-
-const getLicenseStatusText = (status: string) => {
+const getCategoryText = (category: string) => {
   const texts: Record<string, string> = {
-    APPROVED: '已批准',
-    VIOLATION: '违规',
-    UNKNOWN: '未知'
+    SECURITY: '安全',
+    RELIABILITY: '可靠性',
+    MAINTAINABILITY: '可维护性',
+    CODE_SMELL: '代码异味'
   }
-  return texts[status] || status
+  return texts[category] || category
 }
 
 const getScanStatusText = (status: string) => {
@@ -480,7 +445,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.supply-chain-security {
+.code-quality {
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -530,7 +495,7 @@ onUnmounted(() => {
 }
 
 .scan-section,
-.sbom-section {
+.issues-section {
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -607,6 +572,39 @@ onUnmounted(() => {
   text-overflow: ellipsis;
 }
 
+.score-card .card-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+.score-circle {
+  flex-shrink: 0;
+}
+
+.score-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.score-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.score-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}
+
+.score-value {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
 .card-title {
   font-size: var(--font-size-sm);
   font-weight: 600;
@@ -637,20 +635,14 @@ onUnmounted(() => {
   color: var(--color-text-primary);
 }
 
-.stat-value.danger {
-  color: var(--color-error);
-}
-
-.stat-value.warning {
-  color: var(--color-warning);
-}
-
+.category-stats,
 .severity-stats {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--spacing-sm);
 }
 
+.category-stats .stat-item,
 .severity-stats .stat-item {
   flex-direction: column;
   align-items: flex-start;
@@ -659,10 +651,15 @@ onUnmounted(() => {
   border-radius: var(--radius-sm);
 }
 
+.stat-item.security .stat-value { color: #d73a49; }
+.stat-item.reliability .stat-value { color: #e36209; }
+.stat-item.maintainability .stat-value { color: #fbca04; }
+.stat-item.smell .stat-value { color: #6f42c1; }
+.stat-item.blocker .stat-value { color: #b60200; }
 .stat-item.critical .stat-value { color: #d73a49; }
-.stat-item.high .stat-value { color: #e36209; }
-.stat-item.medium .stat-value { color: #fbca04; }
-.stat-item.low .stat-value { color: #28a745; }
+.stat-item.major .stat-value { color: #e36209; }
+.stat-item.minor .stat-value { color: #fbca04; }
+.stat-item.info .stat-value { color: #28a745; }
 
 .no-scan {
   text-align: center;
@@ -681,51 +678,26 @@ onUnmounted(() => {
   font-size: var(--font-size-sm);
 }
 
-.dependency-table {
-  margin-top: var(--spacing-base);
-}
-
-.dep-name {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.dep-version {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
-}
-
-.loading-container {
-  display: flex;
-  justify-content: center;
-  padding: var(--spacing-xl);
-}
-
-.no-data {
-  text-align: center;
-  padding: var(--spacing-xl);
-  color: var(--color-text-tertiary);
-}
-
-.vulnerability-list {
+.issues-list {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-base);
 }
 
-.vulnerability-item {
-  padding: var(--spacing-base);
-  background: var(--color-bg-secondary);
+.issue-item {
+  background: var(--color-bg-tertiary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  overflow: hidden;
 }
 
-.vuln-header {
+.issue-header {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-base);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .severity-badge {
@@ -736,43 +708,67 @@ onUnmounted(() => {
   text-transform: uppercase;
 }
 
+.severity-badge.blocker { background: #b60200; color: white; }
 .severity-badge.critical { background: #d73a49; color: white; }
-.severity-badge.high { background: #e36209; color: white; }
-.severity-badge.medium { background: #fbca04; color: black; }
-.severity-badge.low { background: #28a745; color: white; }
+.severity-badge.major { background: #e36209; color: white; }
+.severity-badge.minor { background: #fbca04; color: black; }
+.severity-badge.info { background: #28a745; color: white; }
 
-.cve-id {
+.category-badge {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+}
+
+.category-badge.security { background: #ffdce0; color: #d73a49; }
+.category-badge.reliability { background: #fff5e5; color: #e36209; }
+.category-badge.maintainability { background: #fff9c4; color: #f9a825; }
+.category-badge.code_smell { background: #f3e5f5; color: #6f42c1; }
+
+.rule-id {
   font-family: monospace;
-  font-size: var(--font-size-sm);
-  color: var(--color-accent-primary);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
 }
 
-.cvss-score {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+.issue-body {
+  padding: var(--spacing-base);
 }
 
-.vuln-title {
-  margin: 0 0 var(--spacing-xs);
-  font-size: var(--font-size-md);
+.issue-title {
   font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-xs);
 }
 
-.vuln-description {
-  margin: 0 0 var(--spacing-sm);
+.issue-message {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
-  line-height: 1.6;
+  margin-bottom: var(--spacing-sm);
 }
 
-.vuln-details {
+.issue-location {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--color-accent-primary);
+  font-family: monospace;
+  margin-bottom: var(--spacing-sm);
 }
 
-.detail-item {
-  font-size: var(--font-size-sm);
+.issue-code {
+  padding: var(--spacing-sm);
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+}
+
+.issue-code code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
 
@@ -792,5 +788,17 @@ onUnmounted(() => {
 
 .service-item:last-child {
   border-bottom: none;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-xl);
+}
+
+.no-data {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--color-text-tertiary);
 }
 </style>

@@ -20,6 +20,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '供应链安全' }
       },
       {
+        path: 'code-quality',
+        name: 'CodeQuality',
+        component: () => import('@/views/CodeQuality.vue'),
+        meta: { title: '代码质量' }
+      },
+      {
         path: 'application/:id',
         name: 'ApplicationDetail',
         component: () => import('@/views/ApplicationDetail.vue'),

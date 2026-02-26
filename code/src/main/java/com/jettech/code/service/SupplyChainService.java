@@ -31,6 +31,7 @@ public class SupplyChainService {
     private final List<DependencyParser> dependencyParsers;
     private final LicenseDetector licenseDetector;
     private final VulnerabilityChecker vulnerabilityChecker;
+    private final AsyncScanService asyncScanService;
 
     public SupplyChainService(DependencyMapper dependencyMapper, 
                              VulnerabilityMapper vulnerabilityMapper,
@@ -38,7 +39,8 @@ public class SupplyChainService {
                              ServiceMapper serviceMapper,
                              List<DependencyParser> dependencyParsers,
                              LicenseDetector licenseDetector,
-                             VulnerabilityChecker vulnerabilityChecker) {
+                             VulnerabilityChecker vulnerabilityChecker,
+                             AsyncScanService asyncScanService) {
         this.dependencyMapper = dependencyMapper;
         this.vulnerabilityMapper = vulnerabilityMapper;
         this.securityScanMapper = securityScanMapper;
@@ -46,6 +48,7 @@ public class SupplyChainService {
         this.dependencyParsers = dependencyParsers;
         this.licenseDetector = licenseDetector;
         this.vulnerabilityChecker = vulnerabilityChecker;
+        this.asyncScanService = asyncScanService;
     }
 
     public List<Dependency> getDependencies(Long serviceId) {
@@ -62,6 +65,10 @@ public class SupplyChainService {
 
     public SecurityScan getLatestScan(Long serviceId) {
         return securityScanMapper.findLatestByServiceId(serviceId);
+    }
+    
+    public SecurityScan getScanById(Long scanId) {
+        return securityScanMapper.findById(scanId);
     }
 
     public List<Dependency> getDependenciesByApplication(Long applicationId) {
@@ -102,8 +109,7 @@ public class SupplyChainService {
         return dependencies;
     }
 
-    @Transactional
-    public SecurityScan performSecurityScan(Long serviceId) throws Exception {
+    public SecurityScan startSecurityScan(Long serviceId) throws Exception {
         com.jettech.code.entity.ServiceEntity service = serviceMapper.findById(serviceId);
         if (service == null) {
             throw new IllegalArgumentException("Service not found");
@@ -120,59 +126,16 @@ public class SupplyChainService {
         scan.setStatus("IN_PROGRESS");
         scan.setStartedAt(LocalDateTime.now());
         scan.setCreatedAt(LocalDateTime.now());
+        scan.setCheckedCount(0);
+        scan.setProgress(0);
+        scan.setCurrentPhase("正在初始化...");
         securityScanMapper.insert(scan);
 
-        try {
-            List<Dependency> dependencies = generateSBOM(serviceId, localPath);
-            scan.setTotalDependencies(dependencies.size());
+        logger.info("Starting async security scan {} for service {}", scan.getId(), serviceId);
+        
+        asyncScanService.executeScanAsync(scan.getId(), serviceId, localPath);
 
-            int vulnerableCount = 0;
-            int criticalCount = 0;
-            int highCount = 0;
-            int mediumCount = 0;
-            int lowCount = 0;
-            int licenseViolationCount = 0;
-
-            Map<Long, List<Vulnerability>> vulnResults = vulnerabilityChecker.batchCheckVulnerabilities(dependencies);
-
-            for (Dependency dep : dependencies) {
-                List<Vulnerability> vulns = vulnResults.getOrDefault(dep.getId(), List.of());
-                if (!vulns.isEmpty()) {
-                    vulnerableCount++;
-                    for (Vulnerability v : vulns) {
-                        switch (v.getSeverity()) {
-                            case "CRITICAL": criticalCount++; break;
-                            case "HIGH": highCount++; break;
-                            case "MEDIUM": mediumCount++; break;
-                            case "LOW": lowCount++; break;
-                        }
-                    }
-                }
-
-                if ("VIOLATION".equals(dep.getLicenseStatus())) {
-                    licenseViolationCount++;
-                }
-            }
-
-            scan.setVulnerableDependencies(vulnerableCount);
-            scan.setCriticalCount(criticalCount);
-            scan.setHighCount(highCount);
-            scan.setMediumCount(mediumCount);
-            scan.setLowCount(lowCount);
-            scan.setLicenseViolationCount(licenseViolationCount);
-            scan.setMalwareCount(0);
-            scan.setStatus("COMPLETED");
-            scan.setCompletedAt(LocalDateTime.now());
-            securityScanMapper.update(scan);
-
-            return scan;
-        } catch (Exception e) {
-            logger.error("Security scan failed for service {}", serviceId, e);
-            scan.setStatus("FAILED");
-            scan.setCompletedAt(LocalDateTime.now());
-            securityScanMapper.update(scan);
-            throw e;
-        }
+        return scan;
     }
 
     private List<Dependency> generateSBOM(Long serviceId, String localPath) throws Exception {
@@ -205,6 +168,9 @@ public class SupplyChainService {
 
         if (!allDependencies.isEmpty()) {
             dependencyMapper.batchInsert(allDependencies);
+            List<Dependency> savedDeps = dependencyMapper.findByServiceId(serviceId);
+            logger.info("Saved {} dependencies with IDs", savedDeps.size());
+            return savedDeps;
         }
 
         return allDependencies;
