@@ -189,7 +189,7 @@ export const codeQualityApi = {
 
   // 获取扫描任务列表
   getScanTasks(scanId: number) {
-    return api.get<ApiResponse<any[]>>(`/code-quality/scans/${scanId}/tasks`)
+    return api.get<ApiResponse<CodeQualityTask[]>>(`/code-quality/scans/${scanId}/tasks`)
   },
 
   // 获取扫描进度
@@ -210,6 +210,31 @@ export const codeQualityApi = {
 }
 
 // ==================== 质量检查配置 API ====================
+
+// 扫描任务接口
+export interface CodeQualityTask {
+  id: number
+  scanId: number
+  serviceId: number
+  serviceName: string
+  checkItemId: number
+  checkItemKey: string
+  checkItemName: string
+  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+  priority: number
+  opencodeSessionId: string | null
+  promptText: string | null
+  responseText: string | null
+  issueCount: number
+  severity: string
+  resultSummary: string | null
+  startedAt: string | null
+  completedAt: string | null
+  createdAt: string
+  updatedAt: string
+  errorMessage: string | null
+  retryCount: number
+}
 
 export interface QualityCheckGroup {
   id: number

@@ -257,6 +257,47 @@
           <CheckCircleOutlined class="success-icon" />
           <p>扫描完成，未发现问题</p>
         </div>
+
+        <!-- OpenCode 分析结果 -->
+        <div class="opencode-section" v-if="scanTasks.length > 0">
+          <div class="section-header">
+            <h3>OpenCode 分析结果</h3>
+            <span class="task-count">共 {{ scanTasks.length }} 个任务</span>
+          </div>
+
+          <div class="tasks-list">
+            <div v-for="task in scanTasks" :key="task.id" class="task-item">
+              <div class="task-header">
+                <span :class="['task-status', task.status.toLowerCase()]">
+                  {{ getTaskStatusText(task.status) }}
+                </span>
+                <span class="task-service">{{ task.serviceName }}</span>
+                <span class="task-check-item">{{ task.checkItemName }}</span>
+                <span v-if="task.issueCount > 0" class="task-issue-count">
+                  {{ task.issueCount }} 个问题
+                </span>
+              </div>
+              <div class="task-body" v-if="task.responseText">
+                <div class="response-label">AI 分析结果：</div>
+                <div class="response-content">
+                  <pre>{{ task.responseText }}</pre>
+                </div>
+              </div>
+              <div class="task-body" v-else-if="task.errorMessage">
+                <div class="error-label">错误信息：</div>
+                <div class="error-content">{{ task.errorMessage }}</div>
+              </div>
+              <div class="task-footer" v-if="task.promptText">
+                <details>
+                  <summary>查看提示词</summary>
+                  <div class="prompt-content">
+                    <pre>{{ task.promptText }}</pre>
+                  </div>
+                </details>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </a-modal>
   </div>
@@ -266,7 +307,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { message, TreeSelect } from 'ant-design-vue'
 import type { Application, ServiceEntity, CodeQualityScan, CodeQualityIssue } from '@/types'
-import { applicationApi, serviceApi, codeQualityApi, qualityCheckApi, type QualityCheckTreeDTO } from '@/api/project'
+import { applicationApi, serviceApi, codeQualityApi, qualityCheckApi, type QualityCheckTreeDTO, type CodeQualityTask } from '@/api/project'
 import { ScanOutlined, FileSearchOutlined, FileOutlined, RightOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 
 const { SHOW_PARENT } = TreeSelect
@@ -288,6 +329,7 @@ const isScanning = ref(false)
 const showReportModal = ref(false)
 const currentScan = ref<CodeQualityScan | null>(null)
 const issues = ref<CodeQualityIssue[]>([])
+const scanTasks = ref<CodeQualityTask[]>([])
 const categoryFilter = ref<string | undefined>(undefined)
 const severityFilter = ref<string | undefined>(undefined)
 
@@ -463,14 +505,20 @@ const viewScanReport = async (scan: CodeQualityScan) => {
   showReportModal.value = true
   categoryFilter.value = undefined
   severityFilter.value = undefined
-  
-  if (scan.status === 'COMPLETED') {
+  issues.value = []
+  scanTasks.value = []
+
+  if (scan.status === 'COMPLETED' || scan.status === 'IN_PROGRESS') {
     try {
-      const { data } = await codeQualityApi.getIssues(scan.id)
-      issues.value = data.data
+      // 并行获取问题和任务
+      const [issuesRes, tasksRes] = await Promise.all([
+        codeQualityApi.getIssues(scan.id),
+        codeQualityApi.getScanTasks(scan.id)
+      ])
+      issues.value = issuesRes.data.data || []
+      scanTasks.value = tasksRes.data.data || []
     } catch (error) {
       console.error(error)
-      issues.value = []
     }
   }
 }
@@ -479,6 +527,7 @@ const closeReport = () => {
   showReportModal.value = false
   currentScan.value = null
   issues.value = []
+  scanTasks.value = []
 }
 
 const getServiceName = (serviceId: number) => {
@@ -506,6 +555,16 @@ const getScanStatusText = (status: string) => {
   const texts: Record<string, string> = {
     COMPLETED: '已完成',
     IN_PROGRESS: '扫描中',
+    FAILED: '失败'
+  }
+  return texts[status] || status
+}
+
+const getTaskStatusText = (status: string) => {
+  const texts: Record<string, string> = {
+    PENDING: '等待中',
+    RUNNING: '执行中',
+    COMPLETED: '已完成',
     FAILED: '失败'
   }
   return texts[status] || status
@@ -1013,5 +1072,161 @@ onUnmounted(() => {
   font-size: 48px;
   color: var(--color-success);
   margin-bottom: var(--spacing-base);
+}
+
+/* OpenCode 分析结果样式 */
+.opencode-section {
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-base);
+  margin-top: var(--spacing-lg);
+}
+
+.opencode-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-base);
+}
+
+.opencode-section .section-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.task-count {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}
+
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-base);
+}
+
+.task-item {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.task-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-base);
+  background: var(--color-bg-tertiary);
+  border-bottom: 1px solid var(--color-border-light);
+  flex-wrap: wrap;
+}
+
+.task-status {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+.task-status.completed {
+  background: rgba(40, 167, 69, 0.1);
+  color: var(--color-success);
+}
+
+.task-status.running {
+  background: rgba(255, 193, 7, 0.1);
+  color: var(--color-warning);
+}
+
+.task-status.pending {
+  background: rgba(108, 117, 125, 0.1);
+  color: var(--color-text-tertiary);
+}
+
+.task-status.failed {
+  background: rgba(220, 53, 69, 0.1);
+  color: var(--color-error);
+}
+
+.task-service {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.task-check-item {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.task-issue-count {
+  font-size: var(--font-size-xs);
+  background: var(--color-error);
+  color: white;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.task-body {
+  padding: var(--spacing-base);
+}
+
+.response-label,
+.error-label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.response-content,
+.prompt-content {
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-sm);
+  overflow-x: auto;
+}
+
+.response-content pre,
+.prompt-content pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.error-content {
+  color: var(--color-error);
+  font-size: var(--font-size-sm);
+}
+
+.task-footer {
+  padding: var(--spacing-sm) var(--spacing-base);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.task-footer details {
+  font-size: var(--font-size-sm);
+}
+
+.task-footer summary {
+  cursor: pointer;
+  color: var(--color-accent-primary);
+  padding: var(--spacing-xs) 0;
+}
+
+.task-footer summary:hover {
+  text-decoration: underline;
+}
+
+.task-footer .prompt-content {
+  margin-top: var(--spacing-sm);
 }
 </style>

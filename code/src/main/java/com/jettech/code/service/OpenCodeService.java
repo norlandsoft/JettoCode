@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jettech.code.dto.OpenCodeDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -45,7 +46,7 @@ public class OpenCodeService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    public OpenCodeService(RestTemplate restTemplate, ObjectMapper objectMapper) {
+    public OpenCodeService(@Qualifier("openCodeRestTemplate") RestTemplate restTemplate, ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
     }
@@ -58,7 +59,7 @@ public class OpenCodeService {
             return false;
         }
         try {
-            ResponseEntity<String> response = restTemplate.getForEntity(baseUrl + "/health", String.class);
+            ResponseEntity<String> response = restTemplate.getForEntity(baseUrl + "/global/health", String.class);
             return response.getStatusCode().is2xxSuccessful();
         } catch (Exception e) {
             logger.debug("OpenCode service not available: {}", e.getMessage());
@@ -81,13 +82,10 @@ public class OpenCodeService {
             throw new IllegalStateException("OpenCode service is disabled");
         }
 
-        String url = baseUrl + "/api/session";
+        String url = baseUrl + "/session";
 
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("title", title);
-        if (systemPrompt != null && !systemPrompt.isEmpty()) {
-            requestBody.put("systemPrompt", systemPrompt);
-        }
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -126,10 +124,12 @@ public class OpenCodeService {
             throw new IllegalStateException("OpenCode service is disabled");
         }
 
-        String url = baseUrl + "/api/session/" + sessionId + "/prompt";
+        String url = baseUrl + "/session/" + sessionId + "/message";
 
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model", model != null ? model : defaultModel);
+        if (model != null && !model.isEmpty()) {
+            requestBody.put("model", model);
+        }
 
         List<Map<String, String>> parts = new ArrayList<>();
         Map<String, String> textPart = new HashMap<>();
@@ -182,22 +182,11 @@ public class OpenCodeService {
             throw new IllegalStateException("OpenCode service is disabled");
         }
 
-        String url = baseUrl + "/api/session/" + sessionId + "/prompt";
+        String url = baseUrl + "/session/" + sessionId + "/message";
 
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model", defaultModel);
-
+        
         List<Map<String, String>> parts = new ArrayList<>();
-
-        // 添加文件引用
-        if (filePaths != null && !filePaths.isEmpty()) {
-            for (String filePath : filePaths) {
-                Map<String, String> filePart = new HashMap<>();
-                filePart.put("type", "file");
-                filePart.put("path", filePath);
-                parts.add(filePart);
-            }
-        }
 
         // 添加文本提示
         Map<String, String> textPart = new HashMap<>();
@@ -339,7 +328,7 @@ public class OpenCodeService {
      * 获取会话消息历史
      */
     public List<Map<String, Object>> getSessionMessages(String sessionId) throws Exception {
-        String url = baseUrl + "/api/session/" + sessionId + "/messages";
+        String url = baseUrl + "/session/" + sessionId + "/message";
 
         ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
 
@@ -350,8 +339,8 @@ public class OpenCodeService {
             if (root.isArray()) {
                 for (JsonNode message : root) {
                     Map<String, Object> msg = new HashMap<>();
-                    msg.put("id", message.path("id").asText());
-                    msg.put("role", message.path("role").asText());
+                    msg.put("id", message.path("info").path("id").asText());
+                    msg.put("role", message.path("info").path("role").asText());
                     messages.add(msg);
                 }
             }
@@ -367,7 +356,7 @@ public class OpenCodeService {
      */
     public boolean deleteSession(String sessionId) {
         try {
-            String url = baseUrl + "/api/session/" + sessionId;
+            String url = baseUrl + "/session/" + sessionId;
             restTemplate.delete(url);
             return true;
         } catch (Exception e) {

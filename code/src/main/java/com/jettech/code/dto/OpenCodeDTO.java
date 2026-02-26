@@ -87,6 +87,13 @@ public class OpenCodeDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ScanResult {
+        // 严重级别常量
+        public static final String SEVERITY_NONE = "NONE";
+        public static final String SEVERITY_LOW = "LOW";
+        public static final String SEVERITY_MEDIUM = "MEDIUM";
+        public static final String SEVERITY_HIGH = "HIGH";
+        public static final String SEVERITY_CRITICAL = "CRITICAL";
+
         private boolean success;
         private int issueCount;
         private String severity;
