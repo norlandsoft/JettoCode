@@ -192,47 +192,85 @@ export const codeQualityApi = {
   }
 }
 
-export const qualityCheckApi = {
-  getAll(category?: string, enabled?: boolean) {
-    const params: Record<string, string | boolean> = {}
-    if (category) params.category = category
-    if (enabled !== undefined) params.enabled = enabled
-    return api.get<ApiResponse<QualityCheckItem[]>>('/quality-check-items', { params })
-  },
+// ==================== 质量检查配置 API ====================
 
-  getById(id: number) {
-    return api.get<ApiResponse<QualityCheckItem>>(`/quality-check-items/${id}`)
-  },
-
-  create(data: Partial<QualityCheckItem>) {
-    return api.post<ApiResponse<QualityCheckItem>>('/quality-check-items', data)
-  },
-
-  update(id: number, data: Partial<QualityCheckItem>) {
-    return api.put<ApiResponse<QualityCheckItem>>(`/quality-check-items/${id}`, data)
-  },
-
-  delete(id: number) {
-    return api.delete<ApiResponse<void>>(`/quality-check-items/${id}`)
-  },
-
-  updateEnabled(id: number, enabled: boolean) {
-    return api.put<ApiResponse<void>>(`/quality-check-items/${id}/enabled`, null, {
-      params: { enabled }
-    })
-  }
-}
-
-interface QualityCheckItem {
+export interface QualityCheckGroup {
   id: number
-  category: string
-  ruleId: string
-  ruleName: string
-  severity: string
+  groupKey: string
+  groupName: string
   description: string
-  promptTemplate: string
-  enabled: boolean
   sortOrder: number
+  enabled: boolean
   createdAt: string
   updatedAt: string
+}
+
+export interface QualityCheckConfig {
+  id: number
+  groupId: number
+  itemKey: string
+  itemName: string
+  description: string
+  promptTemplate: string
+  severity: string
+  sortOrder: number
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface QualityCheckTreeDTO {
+  groupId: number
+  groupKey: string
+  groupName: string
+  description: string
+  sortOrder: number
+  items: QualityCheckConfig[]
+}
+
+export const qualityCheckApi = {
+  // 获取树形结构
+  getTree() {
+    return api.get<ApiResponse<QualityCheckTreeDTO[]>>('/quality-check/tree')
+  },
+
+  // 获取单个配置
+  getConfig(id: number) {
+    return api.get<ApiResponse<QualityCheckConfig>>(`/quality-check/configs/${id}`)
+  },
+
+  // 获取分组下的配置
+  getConfigsByGroupKey(groupKey: string) {
+    return api.get<ApiResponse<QualityCheckConfig[]>>(`/quality-check/groups/${groupKey}/configs`)
+  },
+
+  // 更新配置
+  updateConfig(id: number, data: { promptTemplate?: string; itemName?: string; description?: string }) {
+    return api.put<ApiResponse<QualityCheckConfig>>(`/quality-check/configs/${id}`, data)
+  },
+
+  // 创建分组
+  createGroup(data: Partial<QualityCheckGroup>) {
+    return api.post<ApiResponse<QualityCheckGroup>>('/quality-check/groups', data)
+  },
+
+  // 更新分组
+  updateGroup(id: number, data: Partial<QualityCheckGroup>) {
+    return api.put<ApiResponse<QualityCheckGroup>>(`/quality-check/groups/${id}`, data)
+  },
+
+  // 删除分组
+  deleteGroup(id: number) {
+    return api.delete<ApiResponse<void>>(`/quality-check/groups/${id}`)
+  },
+
+  // 创建配置
+  createConfig(data: Partial<QualityCheckConfig>) {
+    return api.post<ApiResponse<QualityCheckConfig>>('/quality-check/configs', data)
+  },
+
+  // 删除配置
+  deleteConfig(id: number) {
+    return api.delete<ApiResponse<void>>(`/quality-check/configs/${id}`)
+  }
 }

@@ -181,19 +181,34 @@ CREATE TABLE IF NOT EXISTS code_quality_issue (
     INDEX idx_file_path (file_path(255))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS quality_check_item (
+-- 质量检查分组表
+CREATE TABLE IF NOT EXISTS quality_check_group (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    category VARCHAR(50) NOT NULL,
-    rule_id VARCHAR(100) NOT NULL UNIQUE,
-    rule_name VARCHAR(255) NOT NULL,
-    severity VARCHAR(50) NOT NULL,
-    description TEXT,
-    prompt_template TEXT NOT NULL,
-    enabled TINYINT(1) DEFAULT 1,
-    sort_order INT DEFAULT 0,
-    created_at DATETIME NOT NULL,
-    updated_at DATETIME NOT NULL,
-    INDEX idx_category (category),
+    group_key VARCHAR(50) NOT NULL UNIQUE COMMENT '分组标识',
+    group_name VARCHAR(255) NOT NULL COMMENT '分组名称',
+    description TEXT COMMENT '分组描述',
+    sort_order INT DEFAULT 0 COMMENT '排序',
+    enabled TINYINT(1) DEFAULT 1 COMMENT '是否启用',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_enabled_sort (enabled, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='质量检查分组';
+
+-- 质量检查配置表
+CREATE TABLE IF NOT EXISTS quality_check_config (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    group_id BIGINT NOT NULL COMMENT '所属分组ID',
+    item_key VARCHAR(100) NOT NULL COMMENT '检查项标识',
+    item_name VARCHAR(255) NOT NULL COMMENT '检查项名称',
+    description TEXT COMMENT '检查项描述',
+    prompt_template LONGTEXT NOT NULL COMMENT 'AI提示词模板',
+    severity VARCHAR(50) DEFAULT 'MAJOR' COMMENT '默认严重程度',
+    sort_order INT DEFAULT 0 COMMENT '排序',
+    enabled TINYINT(1) DEFAULT 1 COMMENT '是否启用',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (group_id) REFERENCES quality_check_group(id) ON DELETE CASCADE,
+    UNIQUE KEY uk_group_item (group_id, item_key),
     INDEX idx_enabled (enabled),
-    INDEX idx_rule_id (rule_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    INDEX idx_group_sort (group_id, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='质量检查配置';

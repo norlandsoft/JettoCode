@@ -44,7 +44,7 @@
                     v-for="item in category.items"
                     :key="item.key"
                     :class="['category-item', { active: selectedItem === item.key }]"
-                    @click="selectItem(item.key)"
+                    @click="selectItem(item.key, item.id)"
                   >
                     <span class="item-label">{{ item.label }}</span>
                   </div>
@@ -156,27 +156,17 @@ import * as monaco from 'monaco-editor'
 import {
   SaveOutlined,
   ReloadOutlined,
-  SettingOutlined
+  SettingOutlined,
+  LoadingOutlined
 } from '@ant-design/icons-vue'
+import { qualityCheckApi, type QualityCheckTreeDTO, type QualityCheckConfig } from '@/api/project'
 
-interface QualityCheckItem {
-  id: number
-  category: string
-  ruleId: string
-  ruleName: string
-  severity: string
-  description: string
-  promptTemplate: string
-  enabled: boolean
-  sortOrder: number
-  createdAt: string
-  updatedAt: string
-}
-
-// 质量检查分组和子项
+// 质量检查分组和子项（从 API 加载）
 interface CheckItem {
+  id: number
   key: string
   label: string
+  promptTemplate: string
 }
 
 interface CheckCategory {
@@ -185,87 +175,68 @@ interface CheckCategory {
   items: CheckItem[]
 }
 
-const qualityCategories: CheckCategory[] = [
-  {
-    key: 'security',
-    label: '代码安全检查',
-    items: [
-      { key: 'security-owasp', label: 'OWASP Top 10 / CWE Top 25 / OWASP Mobile/LLM' },
-      { key: 'security-injection', label: '注入（SQL/XSS/命令）、路径遍历' },
-      { key: 'security-credentials', label: '硬编码凭证、不安全反序列化、弱加密' },
-      { key: 'security-secrets', label: '秘密凭证检测（450+ 模式，熵 + 语义 + 正则）' },
-      { key: 'security-hotspots', label: '安全热点（潜在风险需人工复核）' }
-    ]
-  },
-  {
-    key: 'reliability',
-    label: '可靠性检查',
-    items: [
-      { key: 'reliability-null', label: '空指针与资源泄漏' },
-      { key: 'reliability-exception', label: '异常处理与错误处理' },
-      { key: 'reliability-concurrency', label: '并发与线程安全' }
-    ]
-  },
-  {
-    key: 'maintainability',
-    label: '可维护性与代码异味',
-    items: [
-      { key: 'maintainability-duplication', label: '代码重复检测' },
-      { key: 'maintainability-complexity', label: '复杂度与代码异味' },
-      { key: 'maintainability-size', label: '文件与方法大小' }
-    ]
-  },
-  {
-    key: 'readability',
-    label: '可读性与一致性',
-    items: [
-      { key: 'readability-naming', label: '命名规范检查' },
-      { key: 'readability-comment', label: '注释质量检查' },
-      { key: 'readability-format', label: '格式化与风格一致性' }
-    ]
-  },
-  {
-    key: 'performance',
-    label: '性能与可扩展性',
-    items: [
-      { key: 'performance-query', label: 'N+1 查询与内存泄漏' },
-      { key: 'performance-loop', label: '低效循环与阻塞 IO' },
-      { key: 'performance-cache', label: '缓存策略检查' }
-    ]
-  },
-  {
-    key: 'testability',
-    label: '可测试性',
-    items: [
-      { key: 'testability-coverage', label: '单元测试覆盖率' },
-      { key: 'testability-mock', label: '可模拟性与依赖注入' },
-      { key: 'testability-isolation', label: '测试隔离性' }
-    ]
-  },
-  {
-    key: 'operability',
-    label: '可操作性',
-    items: [
-      { key: 'operability-logging', label: '日志与监控' },
-      { key: 'operability-health', label: '健康检查与优雅关闭' },
-      { key: 'operability-config', label: '配置管理检查' }
-    ]
-  },
-  {
-    key: 'architecture',
-    label: '架构与质量检查',
-    items: [
-      { key: 'architecture-layer', label: '分层违规与循环依赖' },
-      { key: 'architecture-principle', label: '设计原则检查（SOLID）' },
-      { key: 'architecture-api', label: 'API 设计规范' }
-    ]
-  }
-]
+const qualityCategories = ref<CheckCategory[]>([])
+const loading = ref(false)
+const saving = ref(false)
 
-const expandedCategories = ref<Set<string>>(new Set(['security']))
-const selectedItem = ref('security-owasp')
+// 配置数据（从 API 加载后缓存）
+const checkConfigs = ref<Record<string, string>>({})
+const defaultConfigs = ref<Record<string, string>>({})
+
+// 当前选中
+const expandedCategories = ref<Set<string>>(new Set())
+const selectedItem = ref<string>('')
+const selectedItemId = ref<number | null>(null)
 const checkEditorRef = ref<HTMLElement | null>(null)
 const checkEditor = shallowRef<monaco.editor.IStandaloneCodeEditor | null>(null)
+
+// 加载数据
+const loadData = async () => {
+  loading.value = true
+  try {
+    const { data } = await qualityCheckApi.getTree()
+    const categories: CheckCategory[] = []
+    const configs: Record<string, string> = {}
+    const defaults: Record<string, string> = {}
+
+    for (const group of data) {
+      const items: CheckItem[] = (group.items || []).map(item => ({
+        id: item.id,
+        key: item.itemKey,
+        label: item.itemName,
+        promptTemplate: item.promptTemplate || ''
+      }))
+
+      categories.push({
+        key: group.groupKey,
+        label: group.groupName,
+        items
+      })
+
+      // 缓存配置
+      for (const item of items) {
+        configs[item.key] = item.promptTemplate
+        defaults[item.key] = item.promptTemplate
+      }
+
+      // 默认展开第一个分组
+      if (categories.length === 1 && items.length > 0) {
+        expandedCategories.value.add(group.groupKey)
+        selectedItem.value = items[0].key
+        selectedItemId.value = items[0].id
+      }
+    }
+
+    qualityCategories.value = categories
+    checkConfigs.value = configs
+    defaultConfigs.value = defaults
+  } catch (error) {
+    console.error('加载配置失败:', error)
+    message.error('加载配置失败')
+  } finally {
+    loading.value = false
+  }
+}
 
 // 切换分组展开/折叠
 const toggleCategory = (categoryKey: string) => {
@@ -277,391 +248,18 @@ const toggleCategory = (categoryKey: string) => {
 }
 
 // 选择检查项
-const selectItem = (itemKey: string) => {
+const selectItem = (itemKey: string, itemId: number) => {
   selectedItem.value = itemKey
+  selectedItemId.value = itemId
 }
 
 const currentItemLabel = computed(() => {
-  for (const cat of qualityCategories) {
+  for (const cat of qualityCategories.value) {
     const item = cat.items.find(i => i.key === selectedItem.value)
     if (item) return item.label
   }
   return ''
 })
-
-// 检查配置内容
-const checkConfigs: Record<string, string> = {
-  'security-owasp': `# OWASP Top 10 / CWE Top 25 / OWASP Mobile/LLM 检查配置
-
-[owasp_top10]
-# A01 - 访问控制失效
-broken_access_control = true
-# A02 - 加密失败
-cryptographic_failures = true
-# A03 - 注入
-injection = true
-# A04 - 不安全设计
-insecure_design = true
-# A05 - 安全配置错误
-security_misconfiguration = true
-# A06 - 易受攻击和过时的组件
-vulnerable_components = true
-# A07 - 身份识别和身份验证失败
-auth_failures = true
-# A08 - 软件和数据完整性失败
-integrity_failures = true
-# A09 - 安全日志和监控失败
-logging_failures = true
-# A10 - 服务器端请求伪造
-ssrf = true
-
-[cwe_top25]
-enabled = true
-# CWE-79: XSS
-cwe_79 = true
-# CWE-89: SQL注入
-cwe_89 = true
-# CWE-20: 输入验证不当
-cwe_20 = true
-
-[owasp_mobile]
-enabled = true
-platform_specific_checks = true
-
-[owasp_llm]
-# LLM 应用安全检查
-enabled = true
-prompt_injection = true
-data_leakage = true`,
-
-  'security-injection': `# 注入（SQL/XSS/命令）、路径遍历 检查配置
-
-[sql_injection]
-enabled = true
-# 检测动态 SQL 拼接
-detect_dynamic_sql = true
-# 检测用户输入直接拼接到 SQL
-detect_user_input_concat = true
-# 检测 ORM 框架中的不安全用法
-detect_unsafe_orm = true
-
-[xss]
-enabled = true
-# 反射型 XSS
-reflected = true
-# 存储型 XSS
-stored = true
-# DOM 型 XSS
-dom_based = true
-# 检测 innerHTML 等危险 DOM 操作
-detect_dangerous_dom = true
-
-[command_injection]
-enabled = true
-# 系统命令注入
-system_command = true
-# 代码执行注入
-code_execution = true
-# 表达式语言注入
-el_injection = true
-
-[path_traversal]
-enabled = true
-# 检测路径遍历漏洞
-detect_traversal = true
-# 检测不安全的文件操作
-detect_unsafe_file_ops = true
-# 检测用户控制的文件路径
-detect_user_controlled_path = true`,
-
-  'security-credentials': `# 硬编码凭证、不安全反序列化、弱加密 检查配置
-
-[hardcoded_credentials]
-enabled = true
-# 检测硬编码密码
-passwords = true
-# 检测硬编码 API 密钥
-api_keys = true
-# 检测硬编码私钥
-private_keys = true
-# 检测硬编码 Token
-tokens = true
-
-[insecure_deserialization]
-enabled = true
-# Java 原生反序列化
-java_native = true
-# pickle 反序列化
-pickle = true
-# YAML 反序列化
-yaml_load = true
-# JSONP 远程调用
-jsonp = true
-
-[weak_cryptography]
-enabled = true
-# 弱哈希算法（MD5, SHA1 用于安全场景）
-weak_hash = true
-# 弱加密算法（DES, RC4）
-weak_encryption = true
-# 弱随机数生成器
-weak_random = true
-# 硬编码盐值/IV
-hardcoded_salt_iv = true
-# 不安全的 TLS 版本
-insecure_tls = true`,
-
-  'security-secrets': `# 秘密凭证检测（450+ 模式，熵 + 语义 + 正则）配置
-
-[secrets_detection]
-enabled = true
-
-[detection_methods]
-# 熵值检测
-entropy_detection = true
-entropy_threshold = 4.5
-# 语义分析
-semantic_analysis = true
-# 正则匹配
-regex_patterns = true
-
-[pattern_categories]
-# AWS 凭证
-aws = true
-# Azure 凭证
-azure = true
-# GCP 凭证
-gcp = true
-# GitHub Token
-github = true
-# GitLab Token
-gitlab = true
-# Slack Token
-slack = true
-# JWT Secret
-jwt = true
-# 数据库连接字符串
-database_connection = true
-# 私钥文件
-private_key_files = true
-
-[false_positive_reduction]
-# 验证凭证有效性
-verify_credentials = false
-# 排除测试文件
-exclude_test_files = true
-# 排除示例/文档
-exclude_docs = true`,
-
-  'security-hotspots': `# 安全热点（潜在风险需人工复核）配置
-
-[security_hotspots]
-enabled = true
-
-[hotspot_categories]
-# 敏感数据暴露
-sensitive_data_exposure = true
-# 不安全的配置
-insecure_configuration = true
-# 权限过大
-excessive_permissions = true
-# 缺少访问控制
-missing_access_control = true
-# 不安全的默认值
-insecure_defaults = true
-# 调试信息泄露
-debug_info_leak = true
-# 不安全的重定向
-unsafe_redirect = true
-# 文件上传风险
-file_upload_risks = true
-
-[review_settings]
-# 自动标记需要人工复核的代码
-auto_flag_for_review = true
-# 严重程度阈值
-severity_threshold = "medium"
-# 生成安全报告
-generate_report = true`,
-
-  'reliability-null': `# 空指针与资源泄漏 检查配置
-
-[null_pointer]
-enabled = true
-detect_null_deref = true
-detect_null_check_after_deref = true
-
-[resource_leak]
-enabled = true
-detect_unclosed_streams = true
-detect_unclosed_connections = true`,
-
-  'reliability-exception': `# 异常处理与错误处理 检查配置
-
-[exception_handling]
-enabled = true
-detect_empty_catch = true
-detect_catch_all = true
-
-[error_handling]
-enabled = true
-detect_swallowed_exceptions = true
-detect_unlogged_errors = true`,
-
-  'reliability-concurrency': `# 并发与线程安全 检查配置
-
-[concurrency]
-enabled = true
-detect_race_conditions = true
-detect_deadlock_risks = true`,
-
-  'maintainability-duplication': `# 代码重复检测 配置
-
-[code_duplication]
-enabled = true
-min_duplicate_lines = 5
-similarity_threshold = 80`,
-
-  'maintainability-complexity': `# 复杂度与代码异味 配置
-
-[complexity]
-enabled = true
-max_cyclomatic_complexity = 15
-max_cognitive_complexity = 20`,
-
-  'maintainability-size': `# 文件与方法大小 配置
-
-[size_checks]
-enabled = true
-max_file_lines = 500
-max_method_lines = 50`,
-
-  'readability-naming': `# 命名规范检查 配置
-
-[naming_convention]
-enabled = true
-check_class_names = true
-check_method_names = true
-check_variable_names = true`,
-
-  'readability-comment': `# 注释质量检查 配置
-
-[comment_quality]
-enabled = true
-min_comment_ratio = 10
-check_todo_fixme = true`,
-
-  'readability-format': `# 格式化与风格一致性 配置
-
-[formatting]
-enabled = true
-max_line_length = 120
-check_indentation = true`,
-
-  'performance-query': `# N+1 查询与内存泄漏 配置
-
-[n_plus_one]
-enabled = true
-detect_loop_queries = true
-
-[memory_leak]
-enabled = true
-detect_large_allocations = true`,
-
-  'performance-loop': `# 低效循环与阻塞 IO 配置
-
-[inefficient_loop]
-enabled = true
-detect_nested_loops = true
-
-[blocking_io]
-enabled = true
-detect_sync_io_in_async = true`,
-
-  'performance-cache': `# 缓存策略检查 配置
-
-[cache_strategy]
-enabled = true
-check_cache_invalidations = true
-check_cache_keys = true`,
-
-  'testability-coverage': `# 单元测试覆盖率 配置
-
-[unit_test_coverage]
-enabled = true
-min_coverage = 80
-exclude_patterns = ["*.generated.*", "*.dto.*"]`,
-
-  'testability-mock': `# 可模拟性与依赖注入 配置
-
-[mockability]
-enabled = true
-check_sealed_classes = true
-check_static_dependencies = true`,
-
-  'testability-isolation': `# 测试隔离性 配置
-
-[test_isolation]
-enabled = true
-check_shared_state = true
-check_global_mutable = true`,
-
-  'operability-logging': `# 日志与监控 配置
-
-[logging]
-enabled = true
-check_sensitive_data_logging = true
-check_log_levels = true
-
-[monitoring]
-enabled = true
-check_metrics_export = true`,
-
-  'operability-health': `# 健康检查与优雅关闭 配置
-
-[health_check]
-enabled = true
-check_health_endpoints = true
-
-[graceful_shutdown]
-enabled = true
-check_shutdown_hooks = true`,
-
-  'operability-config': `# 配置管理检查 配置
-
-[config_management]
-enabled = true
-check_hardcoded_config = true
-check_env_variables = true`,
-
-  'architecture-layer': `# 分层违规与循环依赖 配置
-
-[layer_violation]
-enabled = true
-enforce_layer_rules = true
-
-[circular_dependency]
-enabled = true
-detect_cycles = true`,
-
-  'architecture-principle': `# 设计原则检查（SOLID）配置
-
-[solid_principles]
-enabled = true
-single_responsibility = true
-open_closed = true
-liskov_substitution = true
-interface_segregation = true
-dependency_inversion = true`,
-
-  'architecture-api': `# API 设计规范 配置
-
-[api_design]
-enabled = true
-check_restful_conventions = true
-check_versioning = true
-check_error_responses = true`
-}
 
 // 初始化检查配置编辑器
 const initCheckEditor = async () => {
@@ -678,8 +276,8 @@ const initCheckEditor = async () => {
 
   try {
     checkEditor.value = monaco.editor.create(checkEditorRef.value, {
-      value: checkConfigs[selectedItem.value] || '',
-      language: 'ini',
+      value: checkConfigs.value[selectedItem.value] || '',
+      language: 'markdown',
       theme: 'vs',
       minimap: { enabled: false },
       scrollBeyondLastLine: false,
@@ -698,21 +296,30 @@ const initCheckEditor = async () => {
     console.error('Failed to init editor:', error)
   }
 }
-// 保存配置
-const saveCheckConfig = () => {
-  if (!checkEditor.value) return
-  const content = checkEditor.value.getValue()
-  checkConfigs[selectedItem.value] = content
-  message.success('配置已保存')
-}
 
-// 默认配置（用于重置）
-const defaultConfigs: Record<string, string> = { ...checkConfigs }
+// 保存配置
+const saveCheckConfig = async () => {
+  if (!checkEditor.value || !selectedItemId.value) return
+
+  const content = checkEditor.value.getValue()
+  saving.value = true
+
+  try {
+    await qualityCheckApi.updateConfig(selectedItemId.value, { promptTemplate: content })
+    checkConfigs.value[selectedItem.value] = content
+    message.success('配置已保存')
+  } catch (error) {
+    console.error('保存失败:', error)
+    message.error('保存失败')
+  } finally {
+    saving.value = false
+  }
+}
 
 // 重置配置
 const resetCheckConfig = () => {
-  if (checkEditor.value && defaultConfigs[selectedItem.value]) {
-    checkEditor.value.setValue(defaultConfigs[selectedItem.value])
+  if (checkEditor.value && defaultConfigs.value[selectedItem.value]) {
+    checkEditor.value.setValue(defaultConfigs.value[selectedItem.value])
     message.success('配置已重置')
   }
 }
@@ -721,7 +328,7 @@ const resetCheckConfig = () => {
 watch(selectedItem, () => {
   nextTick(() => {
     if (checkEditor.value) {
-      checkEditor.value.setValue(checkConfigs[selectedItem.value] || '')
+      checkEditor.value.setValue(checkConfigs.value[selectedItem.value] || '')
     }
   })
 })
@@ -742,10 +349,25 @@ watch(activeTab, (tab) => {
     })
   }
 })
-const submitting = ref(false)
 
+const submitting = ref(false)
 const showCreateModal = ref(false)
 const showPromptModal = ref(false)
+
+interface QualityCheckItem {
+  id: number
+  category: string
+  ruleId: string
+  ruleName: string
+  severity: string
+  description: string
+  promptTemplate: string
+  enabled: boolean
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
 const editingItem = ref<QualityCheckItem | null>(null)
 const promptItem = ref<QualityCheckItem | null>(null)
 
@@ -794,7 +416,8 @@ const closeModal = () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadData()
   nextTick(() => {
     initCheckEditor()
   })
