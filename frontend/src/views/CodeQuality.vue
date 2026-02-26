@@ -23,27 +23,13 @@
       <div v-if="selectedApplicationId" class="scan-section">
         <div class="section-header">
           <h2>质量扫描</h2>
-          <button class="btn btn-primary" @click="showScanModal = true" :disabled="loadingServices">
+          <button class="btn btn-primary" @click="showScanModal = true" :disabled="loadingServices || isScanning">
             <ScanOutlined />
-            开始扫描
+            {{ isScanning ? '扫描中...' : '开始扫描' }}
           </button>
         </div>
 
         <div v-if="latestScan" class="scan-summary">
-          <div v-if="latestScan.status === 'IN_PROGRESS'" class="progress-card">
-            <div class="card-title">扫描进度</div>
-            <div class="card-content">
-              <a-progress :percent="latestScan.progress || 0" :status="'active'" />
-              <div class="progress-info">
-                <span class="phase">{{ latestScan.currentPhase }}</span>
-                <span class="count">{{ latestScan.checkedCount || 0 }} / {{ latestScan.totalFiles || 0 }} 文件</span>
-              </div>
-              <div v-if="latestScan.currentFile" class="current-dep">
-                正在检查: {{ latestScan.currentFile }}
-              </div>
-            </div>
-          </div>
-
           <div class="summary-card score-card">
             <div class="card-title">质量评分</div>
             <div class="card-content">
@@ -120,7 +106,7 @@
             <div class="card-content">
               <div class="stat-item">
                 <span class="stat-label">扫描状态</span>
-                <span :class="['stat-value', 'status-' + latestScan.status.toLowerCase()]">
+                <span :class="['stat-value', latestScan.status === 'IN_PROGRESS' ? 'scanning' : 'status-' + latestScan.status.toLowerCase()]">
                   {{ getScanStatusText(latestScan.status) }}
                 </span>
               </div>
@@ -238,6 +224,8 @@ const selectedServiceIds = ref<number[]>([])
 const scanningScanIds = ref<number[]>([])
 let progressPollingTimer: ReturnType<typeof setInterval> | null = null
 
+const isScanning = computed(() => latestScan.value?.status === 'IN_PROGRESS')
+
 const filteredIssues = computed(() => {
   let result = issues.value
   
@@ -326,6 +314,9 @@ const handleScan = async () => {
       const { data } = await codeQualityApi.startScan(serviceId)
       if (data.data?.id) {
         scanningScanIds.value.push(data.data.id)
+        if (!latestScan.value || latestScan.value.status !== 'IN_PROGRESS') {
+          latestScan.value = data.data
+        }
       }
       successCount++
     } catch (error) {
@@ -364,7 +355,7 @@ const startProgressPolling = () => {
         const { data } = await codeQualityApi.getScan(scanId)
         const scan = data.data
         
-        if (latestScan.value?.id === scanId) {
+        if (!latestScan.value || latestScan.value.id === scanId || scan.status === 'IN_PROGRESS') {
           latestScan.value = scan
         }
         
@@ -389,7 +380,7 @@ const startProgressPolling = () => {
     if (scanningScanIds.value.length === 0) {
       stopProgressPolling()
     }
-  }, 2000)
+  }, 1000)
 }
 
 const stopProgressPolling = () => {
@@ -423,7 +414,7 @@ const getCategoryText = (category: string) => {
 const getScanStatusText = (status: string) => {
   const texts: Record<string, string> = {
     COMPLETED: '已完成',
-    IN_PROGRESS: '进行中',
+    IN_PROGRESS: '扫描中',
     FAILED: '失败'
   }
   return texts[status] || status
@@ -533,43 +524,6 @@ onUnmounted(() => {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--spacing-base);
-}
-
-.progress-card {
-  background: var(--color-bg-tertiary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-base);
-  grid-column: 1 / -1;
-}
-
-.progress-info {
-  display: flex;
-  justify-content: space-between;
-  margin-top: var(--spacing-sm);
-}
-
-.progress-info .phase {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-}
-
-.progress-info .count {
-  color: var(--color-accent-primary);
-  font-weight: 600;
-  font-size: var(--font-size-sm);
-}
-
-.current-dep {
-  margin-top: var(--spacing-xs);
-  padding: var(--spacing-xs) var(--spacing-sm);
-  background: var(--color-bg-secondary);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .score-card .card-content {
@@ -775,6 +729,12 @@ onUnmounted(() => {
 .status-completed { color: var(--color-success); }
 .status-in_progress { color: var(--color-warning); }
 .status-failed { color: var(--color-error); }
+.scanning { color: #d73a49; font-weight: 600; animation: blink 1s infinite; }
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
 
 .service-list {
   max-height: 300px;
