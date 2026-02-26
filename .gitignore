@@ -49,3 +49,5 @@ repos/
 
 # Project
 workspace
+
+.claude/
