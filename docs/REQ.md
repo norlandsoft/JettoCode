@@ -1,7 +1,7 @@
 **完整静态检查平台需求设计 v2.0**  
 （目标：全面提升代码质量 + 工程质量，已融合供应链安全 + 所有其他静态可检查维度）
 
-基于您已有的**供应链安全管理（SBOM 驱动的漏洞、许可证、恶意包/病毒检查）**，平台现升级为**统一静态检查平台**（建议命名：CodeQuality Guard Pro 或类似），覆盖**12 大核心检查维度**。这些维度全部可通过纯静态分析实现（无需运行代码），参考 SonarQube 质量模型（Reliability/Security/Maintainability 等）、ISO/IEC 25010 产品质量特性（可维护性、可靠性、安全性、性能效率、可操作性等）以及 2025-2026 行业最新实践（7 大质量轴：Readability、Maintainability、Reliability、Security、Performance、Testability、Operability）。
+基于您已有的**供应链安全管理（SBOM 驱动的漏洞、许可证、恶意包/病毒检查）**，平台现升级为**统一静态检查平台**（命名：JettoCode 或类似），覆盖**12 大核心检查维度**。这些维度全部可通过纯静态分析实现（无需运行代码），参考 SonarQube 质量模型（Reliability/Security/Maintainability 等）、ISO/IEC 25010 产品质量特性（可维护性、可靠性、安全性、性能效率、可操作性等）以及 2025-2026 行业最新实践（7 大质量轴：Readability、Maintainability、Reliability、Security、Performance、Testability、Operability）。
 
 所有维度支持：
 - **并行扫描** + **结果聚合去重**

@@ -19,4 +19,6 @@ public class Dependency {
     private String filePath;
     private String checksum;
     private LocalDateTime createdAt;
+    
+    private transient Integer vulnerabilityCount;
 }

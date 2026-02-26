@@ -47,5 +47,6 @@
         <Logger name="org.springframework" level="INFO"/>
         <Logger name="org.mybatis" level="INFO"/>
         <Logger name="org.apache.commons.dbcp2" level="INFO"/>
+        <Logger name="com.jettech.code.mapper" level="ERROR"/>
     </Loggers>
 </Configuration>

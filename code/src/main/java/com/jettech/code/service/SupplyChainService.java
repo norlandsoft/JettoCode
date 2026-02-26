@@ -65,7 +65,12 @@ public class SupplyChainService {
     }
 
     public List<Dependency> getDependenciesByApplication(Long applicationId) {
-        return dependencyMapper.findByApplicationId(applicationId);
+        List<Dependency> dependencies = dependencyMapper.findByApplicationId(applicationId);
+        for (Dependency dep : dependencies) {
+            int count = vulnerabilityMapper.countByDependencyId(dep.getId());
+            dep.setVulnerabilityCount(count);
+        }
+        return dependencies;
     }
 
     public SecurityScan getLatestScanByApplication(Long applicationId) {

@@ -30,9 +30,22 @@ mybatis:
     map-underscore-to-camel-case: true
 
 jettech:
-  workspace: ${JETTO_CODE_WORKSPACE:}
+  workspace: ${JETTO_CODE_WORKSPACE}
   git:
     timeout: 300000
     retry-times: 3
     retry-interval: 5000
     shallow-depth: 1
+
+vulnerability:
+  cache:
+    enabled: true
+    expire-hours: 24
+  sources:
+    osv:
+      enabled: true
+      api-url: https://api.osv.dev/v1
+    nvd:
+      enabled: true
+      api-url: https://services.nvd.nist.gov/restjson/cves/2.0
+      api-key: ${NVD_API_KEY:}

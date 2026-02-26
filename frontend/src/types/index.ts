@@ -149,6 +149,7 @@ export interface Dependency {
   filePath: string
   checksum: string
   createdAt: string
+  vulnerabilityCount?: number
 }
 
 export interface Vulnerability {

@@ -132,8 +132,8 @@
               </a-tag>
             </template>
             <template v-else-if="column.key === 'vulnerabilities'">
-              <a-button type="link" size="small" @click="showVulnerabilities(record)">
-                查看漏洞
+              <a-button type="link" size="small" @click="showVulnerabilities(record)" :disabled="!record.vulnerabilityCount">
+                {{ record.vulnerabilityCount || 0 }} 个漏洞
               </a-button>
             </template>
           </template>

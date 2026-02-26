@@ -106,6 +106,18 @@ CREATE TABLE IF NOT EXISTS license_rule (
     ecosystem VARCHAR(50),
     source VARCHAR(50),
     created_at DATETIME NOT NULL,
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS vulnerability_cache (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    package_pattern VARCHAR(255) NOT NULL,
+    ecosystem VARCHAR(50),
+    source VARCHAR(50),
+    priority INT DEFAULT 0,
+    created_at DATETIME NOT NULL,
+    expires_at DATETIME,
+    raw_data LONGTEXT,
     INDEX idx_package_pattern (package_pattern),
-    INDEX idx_ecosystem (ecosystem)
+    INDEX idx_ecosystem (ecosystem),
+    INDEX idx_expires_at (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
