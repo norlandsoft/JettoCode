@@ -176,8 +176,8 @@ export const codeQualityApi = {
     return api.get<ApiResponse<CodeQualityScan[]>>(`/code-quality/applications/${applicationId}/scans`)
   },
 
-  startScan(serviceId: number) {
-    return api.post<ApiResponse<CodeQualityScan>>(`/code-quality/services/${serviceId}/scan`)
+  startScan(serviceId: number, checkItems?: string[]) {
+    return api.post<ApiResponse<CodeQualityScan>>(`/code-quality/services/${serviceId}/scan`, { checkItems })
   },
 
   getIssues(scanId: number, category?: string, severity?: string) {

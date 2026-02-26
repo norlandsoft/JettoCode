@@ -25,15 +25,31 @@
           </div>
 
           <div class="form-item">
-            <label>扫描内容</label>
+            <label>扫描服务</label>
             <a-select
               v-model:value="selectedServiceIds"
               mode="multiple"
-              style="width: 360px"
+              style="width: 240px"
               placeholder="请选择要扫描的服务"
               :disabled="!selectedApplicationId"
               :loading="loadingServices"
               :options="serviceOptions"
+            />
+          </div>
+
+          <div class="form-item">
+            <label>扫描内容</label>
+            <a-tree-select
+              v-model:value="selectedCheckItems"
+              style="width: 400px"
+              placeholder="请选择检查项"
+              :disabled="!selectedApplicationId"
+              :tree-data="checkItemTreeData"
+              tree-checkable
+              :show-checked-strategy="SHOW_PARENT"
+              tree-node-filter-prop="title"
+              allow-clear
+              :max-tag-count="3"
             />
           </div>
 
@@ -248,16 +264,22 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, TreeSelect } from 'ant-design-vue'
 import type { Application, ServiceEntity, CodeQualityScan, CodeQualityIssue } from '@/types'
-import { applicationApi, serviceApi, codeQualityApi } from '@/api/project'
+import { applicationApi, serviceApi, codeQualityApi, qualityCheckApi, type QualityCheckTreeDTO } from '@/api/project'
 import { ScanOutlined, FileSearchOutlined, FileOutlined, RightOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
+
+const { SHOW_PARENT } = TreeSelect
 
 const applications = ref<Application[]>([])
 const selectedApplicationId = ref<number | null>(null)
 const applicationServices = ref<ServiceEntity[]>([])
 const selectedServiceIds = ref<number[]>([])
 const loadingServices = ref(false)
+
+// 质量检查项
+const qualityCheckTree = ref<QualityCheckTreeDTO[]>([])
+const selectedCheckItems = ref<string[]>([])
 
 const scanHistory = ref<CodeQualityScan[]>([])
 const loadingHistory = ref(false)
@@ -276,6 +298,21 @@ const serviceOptions = computed(() => {
   return applicationServices.value.map(s => ({
     label: s.name,
     value: s.id
+  }))
+})
+
+// 将质量检查项转换为 TreeSelect 格式
+const checkItemTreeData = computed(() => {
+  return qualityCheckTree.value.map(group => ({
+    title: group.groupName,
+    value: group.groupKey,
+    key: group.groupKey,
+    selectable: false,
+    children: (group.items || []).map(item => ({
+      title: item.itemName,
+      value: item.itemKey,
+      key: item.itemKey
+    }))
   }))
 })
 
@@ -312,20 +349,23 @@ const loadApplications = async () => {
 const handleApplicationChange = async () => {
   scanHistory.value = []
   selectedServiceIds.value = []
+  selectedCheckItems.value = []
   issues.value = []
-  
+
   if (!selectedApplicationId.value) return
-  
+
   loadingServices.value = true
   loadingHistory.value = true
-  
+
   try {
-    const [servicesRes, scansRes] = await Promise.all([
+    const [servicesRes, scansRes, checkRes] = await Promise.all([
       serviceApi.getByApplicationId(selectedApplicationId.value),
-      codeQualityApi.getScansByApplication(selectedApplicationId.value)
+      codeQualityApi.getScansByApplication(selectedApplicationId.value),
+      qualityCheckApi.getTree()
     ])
     applicationServices.value = servicesRes.data.data
     scanHistory.value = scansRes.data.data
+    qualityCheckTree.value = checkRes.data.data || []
   } catch (error) {
     console.error(error)
     message.error('加载数据失败')
@@ -340,14 +380,14 @@ const handleScan = async () => {
     message.warning('请至少选择一个服务')
     return
   }
-  
+
   isScanning.value = true
   let successCount = 0
   let failCount = 0
-  
+
   for (const serviceId of selectedServiceIds.value) {
     try {
-      const { data } = await codeQualityApi.startScan(serviceId)
+      const { data } = await codeQualityApi.startScan(serviceId, selectedCheckItems.value)
       if (data.data?.id) {
         scanningScanIds.value.push(data.data.id)
         successCount++
@@ -357,7 +397,7 @@ const handleScan = async () => {
       failCount++
     }
   }
-  
+
   if (successCount > 0) {
     message.success(`已启动 ${successCount} 个服务的扫描`)
     startProgressPolling()
@@ -365,7 +405,7 @@ const handleScan = async () => {
   if (failCount > 0) {
     message.error(`${failCount} 个服务扫描启动失败`)
   }
-  
+
   isScanning.value = false
 }
 

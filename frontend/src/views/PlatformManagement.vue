@@ -29,28 +29,15 @@
         <div class="content-panel quality-check-panel" v-if="activeTab === 'quality-check'">
           <!-- 左侧：检查项列表 -->
           <div class="check-categories">
-            <div class="categories-header">检查类别</div>
-            <div class="categories-list">
-              <div v-for="category in qualityCategories" :key="category.key" class="category-group">
-                <div
-                  :class="['category-header', { expanded: expandedCategories.has(category.key) }]"
-                  @click="toggleCategory(category.key)"
-                >
-                  <span class="expand-icon">{{ expandedCategories.has(category.key) ? '▼' : '▶' }}</span>
-                  <span class="category-label">{{ category.label }}</span>
-                </div>
-                <div v-if="expandedCategories.has(category.key)" class="category-items">
-                  <div
-                    v-for="item in category.items"
-                    :key="item.key"
-                    :class="['category-item', { active: selectedItem === item.key }]"
-                    @click="selectItem(item.key, item.id)"
-                  >
-                    <span class="item-label">{{ item.label }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <FileTree
+              :tree-data="checkTreeData"
+              title="检查类别"
+              :show-header="true"
+              :show-search="false"
+              :show-line="false"
+              :default-expanded-keys="defaultExpandedKeys"
+              @select="handleTreeSelect"
+            />
           </div>
 
           <!-- 右侧：代码编辑器 -->
@@ -160,8 +147,10 @@ import {
   LoadingOutlined
 } from '@ant-design/icons-vue'
 import { qualityCheckApi, type QualityCheckTreeDTO, type QualityCheckConfig } from '@/api/project'
+import FileTree from '@/components/FileTree.vue'
+import type { FileNode } from '@/types'
 
-// 质量检查分组和子项（从 API 加载）
+// 质量检查原始数据（从 API 加载）
 interface CheckItem {
   id: number
   key: string
@@ -184,11 +173,30 @@ const checkConfigs = ref<Record<string, string>>({})
 const defaultConfigs = ref<Record<string, string>>({})
 
 // 当前选中
-const expandedCategories = ref<Set<string>>(new Set())
 const selectedItem = ref<string>('')
 const selectedItemId = ref<number | null>(null)
 const checkEditorRef = ref<HTMLElement | null>(null)
 const checkEditor = shallowRef<monaco.editor.IStandaloneCodeEditor | null>(null)
+
+// 保存 itemKey 到 id 的映射
+const itemIdMap = ref<Record<string, number>>({})
+
+// 将 API 数据转换为 FileTree 格式
+const checkTreeData = computed<FileNode[]>(() => {
+  return qualityCategories.value.map(category => ({
+    name: category.label,
+    path: category.key,
+    type: 'directory' as const,
+    children: category.items.map(item => ({
+      name: item.label,
+      path: `${category.key}/${item.key}`,
+      type: 'file' as const
+    }))
+  }))
+})
+
+// 默认展开的 keys
+const defaultExpandedKeys = ref<string[]>([])
 
 // 加载数据
 const loadData = async () => {
@@ -199,6 +207,7 @@ const loadData = async () => {
     const categories: CheckCategory[] = []
     const configs: Record<string, string> = {}
     const defaults: Record<string, string> = {}
+    const idMap: Record<string, number> = {}
 
     for (const group of treeData) {
       const items: CheckItem[] = (group.items || []).map(item => ({
@@ -214,15 +223,16 @@ const loadData = async () => {
         items
       })
 
-      // 缓存配置
+      // 缓存配置和 ID 映射
       for (const item of items) {
         configs[item.key] = item.promptTemplate
         defaults[item.key] = item.promptTemplate
+        idMap[item.key] = item.id
       }
 
-      // 默认展开第一个分组
+      // 默认展开第一个分组并选中第一个项目
       if (categories.length === 1 && items.length > 0) {
-        expandedCategories.value.add(group.groupKey)
+        defaultExpandedKeys.value = [group.groupKey]
         selectedItem.value = items[0].key
         selectedItemId.value = items[0].id
       }
@@ -231,6 +241,7 @@ const loadData = async () => {
     qualityCategories.value = categories
     checkConfigs.value = configs
     defaultConfigs.value = defaults
+    itemIdMap.value = idMap
   } catch (error) {
     console.error('加载配置失败:', error)
     message.error('加载配置失败')
@@ -239,19 +250,17 @@ const loadData = async () => {
   }
 }
 
-// 切换分组展开/折叠
-const toggleCategory = (categoryKey: string) => {
-  if (expandedCategories.value.has(categoryKey)) {
-    expandedCategories.value.delete(categoryKey)
-  } else {
-    expandedCategories.value.add(categoryKey)
+// 处理树节点选择
+const handleTreeSelect = (node: FileNode, selected: boolean) => {
+  if (node.type === 'file' && selected) {
+    // 从 path 中提取 itemKey (格式: groupKey/itemKey)
+    const parts = node.path.split('/')
+    if (parts.length === 2) {
+      const itemKey = parts[1]
+      selectedItem.value = itemKey
+      selectedItemId.value = itemIdMap.value[itemKey] || null
+    }
   }
-}
-
-// 选择检查项
-const selectItem = (itemKey: string, itemId: number) => {
-  selectedItem.value = itemKey
-  selectedItemId.value = itemId
 }
 
 const currentItemLabel = computed(() => {
@@ -563,86 +572,12 @@ onUnmounted(() => {
 }
 
 .check-categories {
-  width: 200px;
+  width: 220px;
   flex-shrink: 0;
   border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   background: var(--color-bg-tertiary);
-}
-
-.categories-header {
-  padding: var(--spacing-base) var(--spacing-base);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  color: var(--color-text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.categories-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--spacing-sm);
-}
-
-.category-group {
-  margin-bottom: var(--spacing-xs);
-}
-
-.category-header {
-  padding: var(--spacing-sm) var(--spacing-base);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
-  background: var(--color-bg-secondary);
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  transition: all var(--transition-fast);
-}
-
-.category-header:hover {
-  background: var(--color-bg-tertiary);
-}
-
-.expand-icon {
-  font-size: 10px;
-  color: var(--color-text-tertiary);
-  transition: transform var(--transition-fast);
-}
-
-.category-header.expanded .expand-icon {
-  transform: rotate(0deg);
-}
-
-.category-items {
-  margin-top: 2px;
-  padding-left: var(--spacing-base);
-}
-
-.category-item {
-  padding: var(--spacing-xs) var(--spacing-sm);
-  margin-bottom: 1px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  transition: all var(--transition-fast);
-}
-
-.category-item:hover {
-  background: var(--color-bg-secondary);
-  color: var(--color-text-primary);
-}
-
-.category-item.active {
-  background: var(--color-info-bg);
-  color: var(--color-accent-primary);
-  font-weight: 500;
 }
 
 .check-editor {
