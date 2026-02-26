@@ -189,10 +189,14 @@ public class OsvApiClient {
         if (refsArray != null && refsArray.isArray()) {
             StringBuilder refs = new StringBuilder();
             for (JsonNode ref : refsArray) {
-                if (refs.length() > 0) refs.append("\n");
-                refs.append(getTextValue(ref, "url"));
+                String url = getTextValue(ref, "url");
+                // 过滤掉GitHub链接
+                if (url != null && !url.toLowerCase().contains("github.com")) {
+                    if (refs.length() > 0) refs.append("\n");
+                    refs.append(url);
+                }
             }
-            vuln.references = refs.toString();
+            vuln.references = refs.length() > 0 ? refs.toString() : null;
         }
         
         if (vuln.id != null && (vuln.id.startsWith("CVE-") || vuln.id.contains("-CVE-"))) {

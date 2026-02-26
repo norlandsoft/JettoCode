@@ -115,9 +115,10 @@
           :columns="columns"
           :data-source="filteredDependencies"
           :loading="loading"
-          :pagination="{ pageSize: 20 }"
+          :pagination="{ pageSize: 50, showSizeChanger: false }"
           row-key="id"
           class="dependency-table"
+          size="small"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'name'">
@@ -182,7 +183,8 @@
                   rel="noopener noreferrer"
                   class="reference-link"
                 >
-                  <LinkOutlined /> {{ formatReferenceUrl(ref) }}
+                  <span class="ref-type">{{ getReferenceType(ref) }}</span>
+                  <span class="ref-url">{{ formatReferenceUrl(ref) }}</span>
                 </a>
               </div>
             </div>
@@ -225,7 +227,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import type { Application, ServiceEntity, Dependency, Vulnerability, SecurityScan } from '@/types'
 import { applicationApi, serviceApi, supplyChainApi } from '@/api/project'
-import { ScanOutlined, LoadingOutlined, FileSearchOutlined, LinkOutlined } from '@ant-design/icons-vue'
+import { ScanOutlined, LoadingOutlined, FileSearchOutlined } from '@ant-design/icons-vue'
 
 const applications = ref<Application[]>([])
 const selectedApplicationId = ref<number | null>(null)
@@ -484,15 +486,36 @@ const parseReferences = (references: string): string[] => {
 const formatReferenceUrl = (url: string): string => {
   try {
     const urlObj = new URL(url)
-    // 显示域名和路径的最后部分
+    const hostname = urlObj.hostname
+
+    // 处理NVD链接
+    if (hostname === 'nvd.nist.gov') {
+      return 'nvd.nist.gov/vuln/detail/...'
+    }
+
+    // 其他链接：显示域名和路径最后部分
     const pathParts = urlObj.pathname.split('/').filter(p => p)
     if (pathParts.length > 0) {
-      return `${urlObj.hostname}/.../${pathParts[pathParts.length - 1].substring(0, 20)}`
+      const lastPart = pathParts[pathParts.length - 1]
+      if (lastPart.length > 25) {
+        return `${hostname}/.../${lastPart.substring(0, 25)}...`
+      }
+      return `${hostname}/.../${lastPart}`
     }
-    return urlObj.hostname
+    return hostname
   } catch {
     return url.length > 40 ? url.substring(0, 40) + '...' : url
   }
+}
+
+const getReferenceType = (url: string): string => {
+  const lower = url.toLowerCase()
+  if (lower.includes('nvd.nist.gov')) return 'NVD'
+  if (lower.includes('cve.mitre.org')) return 'CVE'
+  if (lower.includes('security.')) return 'Security'
+  if (lower.includes('issues') || lower.includes('issue')) return 'Issue'
+  if (lower.includes('advisory')) return 'Advisory'
+  return 'Link'
 }
 
 onMounted(() => {
@@ -673,10 +696,19 @@ onUnmounted(() => {
   margin-top: var(--spacing-base);
 }
 
+.dependency-table :deep(.ant-table-thead > tr > th) {
+  padding: 8px 12px;
+}
+
+.dependency-table :deep(.ant-table-tbody > tr > td) {
+  padding: 6px 12px;
+}
+
 .dep-name {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
 }
 
 .dep-version {
@@ -776,13 +808,13 @@ onUnmounted(() => {
 }
 
 .reference-link {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
+  gap: var(--spacing-sm);
   color: var(--color-accent-primary);
   text-decoration: none;
   font-size: var(--font-size-sm);
-  padding: 4px 8px;
+  padding: 6px 10px;
   background: var(--color-bg-tertiary);
   border-radius: var(--radius-sm);
   transition: background 0.2s;
@@ -790,7 +822,24 @@ onUnmounted(() => {
 
 .reference-link:hover {
   background: var(--color-bg-primary);
-  text-decoration: underline;
+  text-decoration: none;
+}
+
+.ref-type {
+  display: inline-block;
+  padding: 2px 6px;
+  background: var(--color-accent-primary);
+  color: white;
+  border-radius: var(--radius-xs);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.ref-url {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .status-completed { color: var(--color-success); }
