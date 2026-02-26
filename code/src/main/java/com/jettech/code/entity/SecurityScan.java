@@ -1,9 +1,13 @@
 package com.jettech.code.entity;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class SecurityScan {
     private Long id;
     private Long serviceId;
@@ -21,7 +25,7 @@ public class SecurityScan {
     private LocalDateTime startedAt;
     private LocalDateTime completedAt;
     private LocalDateTime createdAt;
-    
+
     private Integer checkedCount;
     private String currentPhase;
     private String currentDependency;

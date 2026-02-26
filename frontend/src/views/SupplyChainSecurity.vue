@@ -171,6 +171,21 @@
             <div class="detail-item">
               <strong>修复版本：</strong>{{ vuln.fixedVersion }}
             </div>
+            <div v-if="vuln.references" class="detail-item references">
+              <strong>参考链接：</strong>
+              <div class="reference-links">
+                <a
+                  v-for="(ref, index) in parseReferences(vuln.references)"
+                  :key="index"
+                  :href="ref"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="reference-link"
+                >
+                  <LinkOutlined /> {{ formatReferenceUrl(ref) }}
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -210,7 +225,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import type { Application, ServiceEntity, Dependency, Vulnerability, SecurityScan } from '@/types'
 import { applicationApi, serviceApi, supplyChainApi } from '@/api/project'
-import { ScanOutlined, LoadingOutlined, FileSearchOutlined } from '@ant-design/icons-vue'
+import { ScanOutlined, LoadingOutlined, FileSearchOutlined, LinkOutlined } from '@ant-design/icons-vue'
 
 const applications = ref<Application[]>([])
 const selectedApplicationId = ref<number | null>(null)
@@ -459,6 +474,25 @@ const formatDateTime = (dateStr: string) => {
   if (!dateStr) return '-'
   const date = new Date(dateStr)
   return date.toLocaleString('zh-CN')
+}
+
+const parseReferences = (references: string): string[] => {
+  if (!references) return []
+  return references.split('\n').filter(ref => ref.trim())
+}
+
+const formatReferenceUrl = (url: string): string => {
+  try {
+    const urlObj = new URL(url)
+    // 显示域名和路径的最后部分
+    const pathParts = urlObj.pathname.split('/').filter(p => p)
+    if (pathParts.length > 0) {
+      return `${urlObj.hostname}/.../${pathParts[pathParts.length - 1].substring(0, 20)}`
+    }
+    return urlObj.hostname
+  } catch {
+    return url.length > 40 ? url.substring(0, 40) + '...' : url
+  }
 }
 
 onMounted(() => {
@@ -728,6 +762,35 @@ onUnmounted(() => {
 .detail-item {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
+}
+
+.detail-item.references {
+  margin-top: var(--spacing-sm);
+}
+
+.reference-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+}
+
+.reference-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  color: var(--color-accent-primary);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  padding: 4px 8px;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  transition: background 0.2s;
+}
+
+.reference-link:hover {
+  background: var(--color-bg-primary);
+  text-decoration: underline;
 }
 
 .status-completed { color: var(--color-success); }
