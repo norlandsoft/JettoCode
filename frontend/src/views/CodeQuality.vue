@@ -13,7 +13,7 @@
           <div class="form-item">
             <label>选择系统</label>
             <a-select
-              v-model:value="selectedApplicationId"
+              v-model:value="selectedApplicationId as number | undefined"
               style="width: 240px"
               placeholder="请选择应用系统"
               @change="handleApplicationChange"
@@ -61,6 +61,15 @@
             <ScanOutlined />
             <span>{{ isScanning ? '扫描中...' : '执行扫描' }}</span>
           </button>
+
+          <button
+            v-if="isScanning"
+            class="btn btn-danger scan-btn"
+            @click="handleCancelScan"
+          >
+            <StopOutlined />
+            <span>取消扫描</span>
+          </button>
         </div>
       </div>
 
@@ -107,6 +116,13 @@
               <span :class="['status-badge', scan.status.toLowerCase()]">
                 {{ getScanStatusText(scan.status) }}
               </span>
+              <button
+                class="delete-btn"
+                @click.stop="handleDeleteScan(scan)"
+                title="删除"
+              >
+                <DeleteOutlined />
+              </button>
               <RightOutlined class="arrow-icon" />
             </div>
           </div>
@@ -125,190 +141,210 @@
       </div>
     </div>
 
-    <a-modal
-      v-model:open="showReportModal"
-      :title="reportTitle"
-      width="90%"
-      style="top: 20px"
-      :footer="null"
-      @cancel="closeReport"
-    >
-      <div class="report-content" v-if="currentScan">
-        <div class="report-summary">
-          <div class="summary-card score-card">
-            <div class="card-title">质量评分</div>
-            <div class="card-content">
-              <div class="score-circle">
-                <a-progress type="circle" :percent="Math.round(currentScan.qualityScore || 0)" :width="80" />
-              </div>
-              <div class="score-breakdown">
-                <div class="score-item">
-                  <span class="score-label">安全</span>
-                  <span class="score-value">{{ Math.round(currentScan.securityScore || 0) }}</span>
-                </div>
-                <div class="score-item">
-                  <span class="score-label">可靠性</span>
-                  <span class="score-value">{{ Math.round(currentScan.reliabilityScore || 0) }}</span>
-                </div>
-                <div class="score-item">
-                  <span class="score-label">可维护性</span>
-                  <span class="score-value">{{ Math.round(currentScan.maintainabilityScore || 0) }}</span>
-                </div>
-              </div>
-            </div>
+    <!-- 侧边栏日志详情 -->
+    <transition name="slide">
+      <div class="sidebar-overlay" v-if="showSidebar" @click.self="closeSidebar">
+        <div class="sidebar-panel">
+          <!-- 侧边栏头部 -->
+          <div class="sidebar-header">
+            <h3>扫描日志详情</h3>
+            <button class="sidebar-close-btn" @click="closeSidebar">
+              <CloseOutlined />
+            </button>
           </div>
 
-          <div class="summary-card">
-            <div class="card-title">问题分类</div>
-            <div class="card-content category-stats">
-              <div class="stat-item security">
-                <span class="stat-label">安全问题</span>
-                <span class="stat-value">{{ currentScan.securityIssues }}</span>
-              </div>
-              <div class="stat-item reliability">
-                <span class="stat-label">可靠性问题</span>
-                <span class="stat-value">{{ currentScan.reliabilityIssues }}</span>
-              </div>
-              <div class="stat-item maintainability">
-                <span class="stat-label">可维护性问题</span>
-                <span class="stat-value">{{ currentScan.maintainabilityIssues }}</span>
-              </div>
-              <div class="stat-item smell">
-                <span class="stat-label">代码异味</span>
-                <span class="stat-value">{{ currentScan.codeSmellIssues }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="summary-card">
-            <div class="card-title">严重程度</div>
-            <div class="card-content severity-stats">
-              <div class="stat-item blocker">
-                <span class="stat-label">阻塞</span>
-                <span class="stat-value">{{ currentScan.blockerCount }}</span>
-              </div>
-              <div class="stat-item critical">
-                <span class="stat-label">严重</span>
-                <span class="stat-value">{{ currentScan.criticalCount }}</span>
-              </div>
-              <div class="stat-item major">
-                <span class="stat-label">主要</span>
-                <span class="stat-value">{{ currentScan.majorCount }}</span>
-              </div>
-              <div class="stat-item minor">
-                <span class="stat-label">次要</span>
-                <span class="stat-value">{{ currentScan.minorCount }}</span>
-              </div>
-              <div class="stat-item info">
-                <span class="stat-label">提示</span>
-                <span class="stat-value">{{ currentScan.infoCount }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="issues-section" v-if="issues.length > 0">
-          <div class="section-header">
-            <h3>问题列表</h3>
-            <div class="filter-group">
-              <a-select v-model:value="categoryFilter" style="width: 150px" placeholder="问题分类" allowClear>
-                <a-select-option value="SECURITY">安全问题</a-select-option>
-                <a-select-option value="RELIABILITY">可靠性问题</a-select-option>
-                <a-select-option value="MAINTAINABILITY">可维护性问题</a-select-option>
-                <a-select-option value="CODE_SMELL">代码异味</a-select-option>
-              </a-select>
-              <a-select v-model:value="severityFilter" style="width: 120px" placeholder="严重程度" allowClear>
-                <a-select-option value="BLOCKER">阻塞</a-select-option>
-                <a-select-option value="CRITICAL">严重</a-select-option>
-                <a-select-option value="MAJOR">主要</a-select-option>
-                <a-select-option value="MINOR">次要</a-select-option>
-                <a-select-option value="INFO">提示</a-select-option>
-              </a-select>
-            </div>
-          </div>
-
-          <div class="issues-list">
-            <div v-for="issue in filteredIssues" :key="issue.id" class="issue-item">
-              <div class="issue-header">
-                <span :class="['severity-badge', issue.severity.toLowerCase()]">
-                  {{ issue.severity }}
-                </span>
-                <span :class="['category-badge', issue.category.toLowerCase()]">
-                  {{ getCategoryText(issue.category) }}
-                </span>
-                <span class="rule-id">{{ issue.ruleId }}</span>
-              </div>
-              <div class="issue-body">
-                <div class="issue-title">{{ issue.ruleName }}</div>
-                <div class="issue-message">{{ issue.message }}</div>
-                <div class="issue-location">
-                  <FileOutlined />
-                  <span>{{ getShortPath(issue.filePath) }}:{{ issue.line }}</span>
-                </div>
-                <div v-if="issue.codeSnippet" class="issue-code">
-                  <code>{{ issue.codeSnippet }}</code>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="no-issues" v-else-if="currentScan.status === 'COMPLETED'">
-          <CheckCircleOutlined class="success-icon" />
-          <p>扫描完成，未发现问题</p>
-        </div>
-
-        <!-- OpenCode 分析结果 -->
-        <div class="opencode-section" v-if="scanTasks.length > 0">
-          <div class="section-header">
-            <h3>OpenCode 分析结果</h3>
-            <span class="task-count">共 {{ scanTasks.length }} 个任务</span>
-          </div>
-
-          <div class="tasks-list">
-            <div v-for="task in scanTasks" :key="task.id" class="task-item">
-              <div class="task-header">
-                <span :class="['task-status', task.status.toLowerCase()]">
-                  {{ getTaskStatusText(task.status) }}
-                </span>
-                <span class="task-service">{{ task.serviceName }}</span>
-                <span class="task-check-item">{{ task.checkItemName }}</span>
-                <span v-if="task.issueCount > 0" class="task-issue-count">
-                  {{ task.issueCount }} 个问题
+          <!-- 侧边栏内容 -->
+          <div class="sidebar-content" v-if="currentScan">
+            <!-- 扫描概览 -->
+            <div class="scan-overview">
+              <div class="overview-header">
+                <h3>扫描概览</h3>
+                <span :class="['scan-status', currentScan.status.toLowerCase()]">
+                  {{ getScanStatusText(currentScan.status) }}
                 </span>
               </div>
-              <div class="task-body" v-if="task.responseText">
-                <div class="response-label">AI 分析结果：</div>
-                <div class="response-content">
-                  <pre>{{ task.responseText }}</pre>
+              <div class="overview-grid">
+                <div class="overview-item">
+                  <span class="label">扫描时间</span>
+                  <span class="value">{{ formatDateTime(currentScan.startedAt) }}</span>
+                </div>
+                <div class="overview-item">
+                  <span class="label">完成时间</span>
+                  <span class="value">{{ currentScan.completedAt ? formatDateTime(currentScan.completedAt) : '-' }}</span>
+                </div>
+                <div class="overview-item">
+                  <span class="label">执行阶段</span>
+                  <span class="value">{{ currentScan.currentPhase || '-' }}</span>
+                </div>
+                <div class="overview-item">
+                  <span class="label">任务数量</span>
+                  <span class="value">{{ currentScan.totalFiles || 0 }} 个</span>
+                </div>
+                <div class="overview-item">
+                  <span class="label">质量评分</span>
+                  <span class="value" :class="getScoreClass(currentScan.qualityScore)">
+                    {{ Math.round(currentScan.qualityScore || 0) }}
+                  </span>
+                </div>
+                <div class="overview-item">
+                  <span class="label">发现问题</span>
+                  <span class="value">{{ currentScan.totalIssues || 0 }} 个</span>
                 </div>
               </div>
-              <div class="task-body" v-else-if="task.errorMessage">
-                <div class="error-label">错误信息：</div>
-                <div class="error-content">{{ task.errorMessage }}</div>
+            </div>
+
+            <!-- 加载状态 -->
+            <div class="loading-state" v-if="loadingLogs">
+              <a-spin />
+              <span>加载日志中...</span>
+            </div>
+
+            <!-- 日志列表 -->
+            <div class="logs-section" v-else-if="scanLogs.length > 0">
+              <div class="section-header">
+                <h3>执行日志</h3>
+                <span class="log-count">共 {{ scanLogs.length }} 条记录</span>
               </div>
-              <div class="task-footer" v-if="task.promptText">
-                <details>
-                  <summary>查看提示词</summary>
-                  <div class="prompt-content">
-                    <pre>{{ task.promptText }}</pre>
+
+              <div class="logs-list">
+                <div v-for="log in scanLogs" :key="log.taskId" class="log-item">
+                  <!-- 日志头部 -->
+                  <div class="log-header" @click="toggleLogDetail(log.taskId)">
+                    <div class="log-header-left">
+                      <span :class="['log-status', log.status.toLowerCase()]">
+                        {{ getTaskStatusText(log.status) }}
+                      </span>
+                      <span class="log-service">{{ log.serviceName }}</span>
+                      <span class="log-check-item">{{ log.checkItemName }}</span>
+                    </div>
+                    <div class="log-header-right">
+                      <span v-if="log.issueCount > 0" class="log-issue-count">
+                        {{ log.issueCount }} 个问题
+                      </span>
+                      <span v-if="log.duration" class="log-duration">
+                        {{ formatDuration(log.duration) }}
+                      </span>
+                      <DownOutlined :class="['expand-icon', { expanded: expandedLogs.has(log.taskId) }]" />
+                    </div>
                   </div>
-                </details>
+
+                  <!-- 日志详情（展开后显示） -->
+                  <div class="log-detail" v-if="expandedLogs.has(log.taskId)">
+                    <!-- 执行时间 -->
+                    <div class="detail-section">
+                      <div class="detail-title">执行时间</div>
+                      <div class="detail-content time-info">
+                        <div class="time-item">
+                          <ClockCircleOutlined />
+                          <span>开始: {{ log.startedAt ? formatDateTime(log.startedAt) : '-' }}</span>
+                        </div>
+                        <div class="time-item">
+                          <CheckCircleOutlined />
+                          <span>结束: {{ log.completedAt ? formatDateTime(log.completedAt) : '-' }}</span>
+                        </div>
+                        <div class="time-item" v-if="log.duration">
+                          <HourglassOutlined />
+                          <span>耗时: {{ formatDuration(log.duration) }}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- 扫描内容 -->
+                    <div class="detail-section">
+                      <div class="detail-title">扫描内容</div>
+                      <div class="detail-content">
+                        <div class="info-grid">
+                          <div class="info-item">
+                            <span class="info-label">服务:</span>
+                            <span class="info-value">{{ log.serviceName }}</span>
+                          </div>
+                          <div class="info-item">
+                            <span class="info-label">检查项:</span>
+                            <span class="info-value">{{ log.checkItemName }}</span>
+                          </div>
+                          <div class="info-item">
+                            <span class="info-label">检查项 Key:</span>
+                            <span class="info-value">{{ log.checkItemKey }}</span>
+                          </div>
+                          <div class="info-item">
+                            <span class="info-label">严重级别:</span>
+                            <span class="info-value">{{ log.severity }}</span>
+                          </div>
+                          <div class="info-item">
+                            <span class="info-label">问题数量:</span>
+                            <span class="info-value">{{ log.issueCount }}</span>
+                          </div>
+                          <div class="info-item" v-if="log.retryCount > 0">
+                            <span class="info-label">重试次数:</span>
+                            <span class="info-value">{{ log.retryCount }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- 提示词 -->
+                    <div class="detail-section" v-if="log.promptText">
+                      <div class="detail-title">
+                        <span>输入提示词</span>
+                        <span class="text-length">({{ log.promptLength || log.promptText.length }} 字符)</span>
+                      </div>
+                      <div class="detail-content code-block">
+                        <pre>{{ log.promptText }}</pre>
+                      </div>
+                    </div>
+
+                    <!-- AI 响应 -->
+                    <div class="detail-section" v-if="log.responseText">
+                      <div class="detail-title">
+                        <span>AI 分析结果</span>
+                        <span class="text-length">({{ log.responseLength || log.responseText.length }} 字符)</span>
+                      </div>
+                      <div class="detail-content code-block">
+                        <pre>{{ log.responseText }}</pre>
+                      </div>
+                    </div>
+
+                    <!-- 错误信息 -->
+                    <div class="detail-section error-section" v-if="log.errorMessage">
+                      <div class="detail-title error-title">
+                        <ExclamationCircleOutlined />
+                        <span>错误信息</span>
+                      </div>
+                      <div class="detail-content error-content">
+                        {{ log.errorMessage }}
+                      </div>
+                    </div>
+
+                    <!-- 结果摘要 -->
+                    <div class="detail-section" v-if="log.resultSummary">
+                      <div class="detail-title">结果摘要</div>
+                      <div class="detail-content summary-content">
+                        {{ log.resultSummary }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
+            </div>
+
+            <!-- 无日志 -->
+            <div class="no-logs" v-else>
+              <FileSearchOutlined class="empty-icon" />
+              <p>暂无执行日志</p>
             </div>
           </div>
         </div>
       </div>
-    </a-modal>
+    </transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { message, TreeSelect } from 'ant-design-vue'
+import { message, TreeSelect, Modal } from 'ant-design-vue'
 import type { Application, ServiceEntity, CodeQualityScan, CodeQualityIssue } from '@/types'
-import { applicationApi, serviceApi, codeQualityApi, qualityCheckApi, type QualityCheckTreeDTO, type CodeQualityTask } from '@/api/project'
-import { ScanOutlined, FileSearchOutlined, FileOutlined, RightOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
+import { applicationApi, serviceApi, codeQualityApi, qualityCheckApi, scanLogApi, type QualityCheckTreeDTO, type TaskExecutionLog } from '@/api/project'
+import { ScanOutlined, FileSearchOutlined, RightOutlined, CheckCircleOutlined, StopOutlined, DownOutlined, ClockCircleOutlined, HourglassOutlined, ExclamationCircleOutlined, CloseOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 
 const { SHOW_PARENT } = TreeSelect
 
@@ -326,15 +362,16 @@ const scanHistory = ref<CodeQualityScan[]>([])
 const loadingHistory = ref(false)
 const isScanning = ref(false)
 
-const showReportModal = ref(false)
+const showSidebar = ref(false)
 const currentScan = ref<CodeQualityScan | null>(null)
 const issues = ref<CodeQualityIssue[]>([])
-const scanTasks = ref<CodeQualityTask[]>([])
-const categoryFilter = ref<string | undefined>(undefined)
-const severityFilter = ref<string | undefined>(undefined)
-
 let progressPollingTimer: ReturnType<typeof setInterval> | null = null
 const scanningScanIds = ref<number[]>([])
+
+// 日志相关状态
+const scanLogs = ref<TaskExecutionLog[]>([])
+const expandedLogs = ref<Set<number>>(new Set())
+const loadingLogs = ref(false)
 
 const serviceOptions = computed(() => {
   return applicationServices.value.map(s => ({
@@ -357,26 +394,6 @@ const checkItemTreeData = computed(() => {
       key: item.id
     }))
   }))
-})
-
-const reportTitle = computed(() => {
-  if (!currentScan.value) return '扫描报告'
-  const serviceName = getServiceName(currentScan.value.serviceId)
-  return `${serviceName} - 扫描报告`
-})
-
-const filteredIssues = computed(() => {
-  let result = issues.value
-  
-  if (categoryFilter.value) {
-    result = result.filter(i => i.category === categoryFilter.value)
-  }
-  
-  if (severityFilter.value) {
-    result = result.filter(i => i.severity === severityFilter.value)
-  }
-  
-  return result
 })
 
 const loadApplications = async () => {
@@ -439,14 +456,153 @@ const handleScan = async () => {
     const { data } = await codeQualityApi.startBatchScan(selectedServiceIds.value, checkItemIds)
     if (data.data?.id) {
       scanningScanIds.value.push(data.data.id)
+      currentScanningId.value = data.data.id
       message.success('已启动扫描任务')
-      startProgressPolling()
+      // 尝试使用 WebSocket，失败则回退到轮询
+      if (!connectWebSocket(data.data.id)) {
+        startProgressPolling()
+      }
     }
   } catch (error: any) {
     console.error(error)
     message.error(error.response?.data?.message || '启动扫描失败')
-  } finally {
     isScanning.value = false
+  }
+}
+
+const currentScanningId = ref<number | null>(null)
+
+// 取消扫描
+const handleCancelScan = async () => {
+  if (!currentScanningId.value) return
+
+  try {
+    await codeQualityApi.cancelScan(currentScanningId.value)
+    message.info('正在取消扫描...')
+  } catch (error: any) {
+    console.error(error)
+    message.error(error.response?.data?.message || '取消扫描失败')
+  }
+}
+
+// 删除扫描记录
+const handleDeleteScan = async (scan: CodeQualityScan) => {
+  // 使用确认对话框
+  Modal.confirm({
+    title: '确认删除',
+    content: '确定要删除该扫描记录吗？此操作不可恢复。',
+    okText: '删除',
+    okType: 'danger',
+    cancelText: '取消',
+    async onOk() {
+      try {
+        await codeQualityApi.deleteScan(scan.id)
+        message.success('扫描记录已删除')
+        // 从列表中移除
+        scanHistory.value = scanHistory.value.filter(s => s.id !== scan.id)
+        // 如果当前侧边栏显示的是被删除的扫描，关闭侧边栏
+        if (currentScan.value?.id === scan.id) {
+          closeSidebar()
+        }
+      } catch (error: any) {
+        console.error(error)
+        message.error(error.response?.data?.message || '删除失败')
+      }
+    }
+  })
+}
+
+// WebSocket 相关
+let websocket: WebSocket | null = null
+let reconnectAttempts = 0
+const maxReconnectAttempts = 3
+
+const connectWebSocket = (scanId: number): boolean => {
+  try {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsUrl = `${protocol}//${window.location.host}/api/ws`
+
+    websocket = new WebSocket(wsUrl)
+
+    websocket.onopen = () => {
+      console.log('WebSocket connected')
+      reconnectAttempts = 0
+      // 订阅扫描进度
+      websocket?.send(JSON.stringify({
+        type: 'subscribe',
+        topic: `/topic/scan/${scanId}`
+      }))
+    }
+
+    websocket.onmessage = (event) => {
+      try {
+        const progress = JSON.parse(event.data)
+        handleProgressUpdate(progress)
+      } catch (e) {
+        // 可能是订阅确认消息，忽略
+      }
+    }
+
+    websocket.onerror = (error) => {
+      console.error('WebSocket error:', error)
+    }
+
+    websocket.onclose = () => {
+      console.log('WebSocket closed')
+      // 如果扫描仍在进行，回退到轮询
+      if (isScanning.value && reconnectAttempts < maxReconnectAttempts) {
+        reconnectAttempts++
+        console.log('Falling back to polling')
+        startProgressPolling()
+      }
+    }
+
+    return true
+  } catch (error) {
+    console.error('Failed to connect WebSocket:', error)
+    return false
+  }
+}
+
+const handleProgressUpdate = (progress: any) => {
+  switch (progress.type) {
+    case 'PROGRESS':
+      // 更新进度
+      break
+    case 'TASK_COMPLETE':
+      if (progress.issueCount > 0) {
+        message.info(`任务完成: 发现 ${progress.issueCount} 个问题`)
+      }
+      break
+    case 'COMPLETED':
+      message.success(`扫描完成: 共发现 ${progress.issueCount || 0} 个问题`)
+      stopScanning()
+      handleApplicationChange()
+      break
+    case 'CANCELLED':
+      message.warning(progress.message || '扫描已取消')
+      stopScanning()
+      handleApplicationChange()
+      break
+    case 'ERROR':
+      message.error(progress.message || '扫描出错')
+      stopScanning()
+      break
+  }
+}
+
+const stopScanning = () => {
+  isScanning.value = false
+  currentScanningId.value = null
+  scanningScanIds.value = []
+  stopProgressPolling()
+  disconnectWebSocket()
+}
+
+const disconnectWebSocket = () => {
+  if (websocket) {
+    websocket.close()
+    websocket = null
   }
 }
 
@@ -454,29 +610,32 @@ const startProgressPolling = () => {
   if (progressPollingTimer) {
     clearInterval(progressPollingTimer)
   }
-  
+
   progressPollingTimer = setInterval(async () => {
     if (scanningScanIds.value.length === 0) {
       stopProgressPolling()
       return
     }
-    
+
     const completedIds: number[] = []
-    
+
     for (const scanId of scanningScanIds.value) {
       try {
         const { data } = await codeQualityApi.getScan(scanId)
         const scan = data.data
-        
-        if (scan.status === 'COMPLETED' || scan.status === 'FAILED') {
+
+        if (scan.status === 'COMPLETED' || scan.status === 'FAILED' || scan.status === 'CANCELLED') {
           completedIds.push(scanId)
-          
+
           if (scan.status === 'COMPLETED') {
             message.success(`扫描完成: 发现 ${scan.totalIssues || 0} 个问题`)
+          } else if (scan.status === 'CANCELLED') {
+            message.warning('扫描已取消')
           } else {
             message.error(`扫描失败`)
           }
-          
+
+          stopScanning()
           await handleApplicationChange()
         }
       } catch (error) {
@@ -484,9 +643,9 @@ const startProgressPolling = () => {
         completedIds.push(scanId)
       }
     }
-    
+
     scanningScanIds.value = scanningScanIds.value.filter(id => !completedIds.includes(id))
-    
+
     if (scanningScanIds.value.length === 0) {
       stopProgressPolling()
     }
@@ -502,32 +661,49 @@ const stopProgressPolling = () => {
 
 const viewScanReport = async (scan: CodeQualityScan) => {
   currentScan.value = scan
-  showReportModal.value = true
-  categoryFilter.value = undefined
-  severityFilter.value = undefined
-  issues.value = []
-  scanTasks.value = []
+  showSidebar.value = true
+  scanLogs.value = []
+  expandedLogs.value = new Set()
+  loadingLogs.value = true
 
-  if (scan.status === 'COMPLETED' || scan.status === 'IN_PROGRESS') {
-    try {
-      // 并行获取问题和任务
-      const [issuesRes, tasksRes] = await Promise.all([
-        codeQualityApi.getIssues(scan.id),
-        codeQualityApi.getScanTasks(scan.id)
-      ])
-      issues.value = issuesRes.data.data || []
-      scanTasks.value = tasksRes.data.data || []
-    } catch (error) {
-      console.error(error)
-    }
+  try {
+    // 获取扫描日志
+    const { data } = await scanLogApi.getScanLogs(scan.id)
+    scanLogs.value = data.data || []
+  } catch (error) {
+    console.error(error)
+    message.error('加载日志失败')
+  } finally {
+    loadingLogs.value = false
   }
 }
 
-const closeReport = () => {
-  showReportModal.value = false
+const closeSidebar = () => {
+  showSidebar.value = false
   currentScan.value = null
-  issues.value = []
-  scanTasks.value = []
+  scanLogs.value = []
+  expandedLogs.value = new Set()
+}
+
+// 切换日志详情展开/收起
+const toggleLogDetail = (taskId: number) => {
+  if (expandedLogs.value.has(taskId)) {
+    expandedLogs.value.delete(taskId)
+  } else {
+    expandedLogs.value.add(taskId)
+  }
+  // 触发响应式更新
+  expandedLogs.value = new Set(expandedLogs.value)
+}
+
+// 格式化时长
+const formatDuration = (ms: number | null): string => {
+  if (!ms) return '-'
+  if (ms < 1000) return `${ms}ms`
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
+  const minutes = Math.floor(ms / 60000)
+  const seconds = Math.floor((ms % 60000) / 1000)
+  return `${minutes}m ${seconds}s`
 }
 
 const getServiceName = (serviceId: number) => {
@@ -535,27 +711,12 @@ const getServiceName = (serviceId: number) => {
   return service?.name || `服务 ${serviceId}`
 }
 
-const getShortPath = (path: string) => {
-  if (!path) return ''
-  const parts = path.split('/')
-  return parts.slice(-3).join('/')
-}
-
-const getCategoryText = (category: string) => {
-  const texts: Record<string, string> = {
-    SECURITY: '安全',
-    RELIABILITY: '可靠性',
-    MAINTAINABILITY: '可维护性',
-    CODE_SMELL: '代码异味'
-  }
-  return texts[category] || category
-}
-
 const getScanStatusText = (status: string) => {
   const texts: Record<string, string> = {
     COMPLETED: '已完成',
     IN_PROGRESS: '扫描中',
-    FAILED: '失败'
+    FAILED: '失败',
+    CANCELLED: '已取消'
   }
   return texts[status] || status
 }
@@ -565,7 +726,8 @@ const getTaskStatusText = (status: string) => {
     PENDING: '等待中',
     RUNNING: '执行中',
     COMPLETED: '已完成',
-    FAILED: '失败'
+    FAILED: '失败',
+    CANCELLED: '已取消'
   }
   return texts[status] || status
 }
@@ -588,6 +750,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopProgressPolling()
+  disconnectWebSocket()
 })
 </script>
 
@@ -600,7 +763,7 @@ onUnmounted(() => {
 }
 
 .page-header {
-  height: 72px;
+  height: 60px;
   flex-shrink: 0;
   display: flex;
   justify-content: space-between;
@@ -617,8 +780,8 @@ onUnmounted(() => {
 }
 
 .header-left h1 {
-  margin: 0 0 var(--spacing-xs);
-  font-size: 24px;
+  margin: 0 0 2px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--color-text-primary);
 }
@@ -820,8 +983,58 @@ onUnmounted(() => {
   color: var(--color-error);
 }
 
+.status-badge.cancelled {
+  background: rgba(108, 117, 125, 0.1);
+  color: var(--color-text-tertiary);
+}
+
+.task-status.cancelled {
+  background: rgba(108, 117, 125, 0.1);
+  color: var(--color-text-tertiary);
+}
+
+.btn-danger {
+  background: var(--color-error);
+  color: white;
+  border: none;
+}
+
+.btn-danger:hover {
+  background: #c82333;
+}
+
+.status-badge.cancelled {
+  background: rgba(108, 117, 125, 0.1);
+  color: var(--color-text-tertiary);
+}
+
 .arrow-icon {
   color: var(--color-text-tertiary);
+}
+
+.delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  opacity: 0;
+}
+
+.history-item:hover .delete-btn {
+  opacity: 1;
+}
+
+.delete-btn:hover {
+  background: rgba(220, 53, 69, 0.1);
+  color: var(--color-error);
 }
 
 .empty-state,
@@ -1228,5 +1441,426 @@ onUnmounted(() => {
 
 .task-footer .prompt-content {
   margin-top: var(--spacing-sm);
+}
+
+/* 日志视图样式 */
+.log-content {
+  max-height: calc(90vh - 120px);
+  overflow-y: auto;
+}
+
+.scan-overview {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-base);
+  margin-bottom: var(--spacing-lg);
+}
+
+.overview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-base);
+}
+
+.overview-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.scan-status {
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.scan-status.completed {
+  background: rgba(40, 167, 69, 0.1);
+  color: var(--color-success);
+}
+
+.scan-status.in_progress {
+  background: rgba(255, 193, 7, 0.1);
+  color: var(--color-warning);
+}
+
+.scan-status.failed {
+  background: rgba(220, 53, 69, 0.1);
+  color: var(--color-error);
+}
+
+.scan-status.cancelled {
+  background: rgba(108, 117, 125, 0.1);
+  color: var(--color-text-tertiary);
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--spacing-base);
+}
+
+.overview-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.overview-item .label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}
+
+.overview-item .value {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.overview-item .value.good { color: var(--color-success); }
+.overview-item .value.medium { color: var(--color-warning); }
+.overview-item .value.poor { color: var(--color-error); }
+
+.logs-section {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-base);
+}
+
+.logs-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-base);
+}
+
+.logs-section .section-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.log-count {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}
+
+.logs-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.log-item {
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-base);
+  background: var(--color-bg-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.log-header:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.log-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.log-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-base);
+}
+
+.log-status {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+.log-status.completed {
+  background: rgba(40, 167, 69, 0.1);
+  color: var(--color-success);
+}
+
+.log-status.running {
+  background: rgba(255, 193, 7, 0.1);
+  color: var(--color-warning);
+}
+
+.log-status.pending {
+  background: rgba(108, 117, 125, 0.1);
+  color: var(--color-text-tertiary);
+}
+
+.log-status.failed {
+  background: rgba(220, 53, 69, 0.1);
+  color: var(--color-error);
+}
+
+.log-status.cancelled {
+  background: rgba(108, 117, 125, 0.1);
+  color: var(--color-text-tertiary);
+}
+
+.log-service {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.log-check-item {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.log-issue-count {
+  font-size: var(--font-size-xs);
+  background: var(--color-error);
+  color: white;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.log-duration {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.expand-icon {
+  color: var(--color-text-tertiary);
+  transition: transform var(--transition-fast);
+}
+
+.expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.log-detail {
+  border-top: 1px solid var(--color-border-light);
+  padding: var(--spacing-base);
+}
+
+.detail-section {
+  margin-bottom: var(--spacing-base);
+}
+
+.detail-section:last-child {
+  margin-bottom: 0;
+}
+
+.detail-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.detail-title .text-length {
+  font-weight: normal;
+  color: var(--color-text-tertiary);
+}
+
+.detail-content {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.time-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-lg);
+}
+
+.time-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  color: var(--color-text-secondary);
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.info-item {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.info-label {
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.info-value {
+  color: var(--color-text-primary);
+  word-break: break-all;
+}
+
+.code-block {
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-sm);
+  overflow-x: auto;
+}
+
+.code-block pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.error-section {
+  background: rgba(220, 53, 69, 0.05);
+  border: 1px solid rgba(220, 53, 69, 0.2);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-sm);
+}
+
+.error-title {
+  color: var(--color-error);
+}
+
+.error-content {
+  color: var(--color-error);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+
+.summary-content {
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-sm);
+  line-height: 1.6;
+}
+
+.no-logs {
+  text-align: center;
+  padding: var(--spacing-3xl);
+  color: var(--color-text-tertiary);
+}
+
+.no-logs .empty-icon {
+  font-size: 48px;
+  margin-bottom: var(--spacing-base);
+  opacity: 0.3;
+}
+
+/* Sidebar 样式 */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+}
+
+.sidebar-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 680px;
+  max-width: 90vw;
+  background: var(--color-bg-secondary);
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-base) var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+  flex-shrink: 0;
+}
+
+.sidebar-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.sidebar-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.sidebar-close-btn:hover {
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-lg);
+}
+
+/* Slide transition */
+.slide-enter-active,
+.slide-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.slide-enter-active .sidebar-panel,
+.slide-leave-active .sidebar-panel {
+  transition: transform 0.3s ease;
+}
+
+.slide-enter-from,
+.slide-leave-to {
+  opacity: 0;
+}
+
+.slide-enter-from .sidebar-panel,
+.slide-leave-to .sidebar-panel {
+  transform: translateX(100%);
 }
 </style>

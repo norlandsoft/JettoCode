@@ -140,6 +140,19 @@ public class CodeQualityController {
         return ResponseEntity.ok(ApiResponse.success(progress));
     }
 
+    /**
+     * 取消扫描
+     */
+    @PostMapping("/scans/{scanId}/cancel")
+    public ResponseEntity<ApiResponse<Boolean>> cancelScan(@PathVariable Long scanId) {
+        boolean cancelled = scanTaskManager.cancelScan(scanId);
+        if (cancelled) {
+            return ResponseEntity.ok(ApiResponse.success("扫描已取消", true));
+        }
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error("无法取消扫描，可能扫描已完成或不存在"));
+    }
+
     @GetMapping("/scans/{scanId}/issues")
     public ResponseEntity<ApiResponse<List<CodeQualityIssue>>> getIssues(
             @PathVariable Long scanId,
@@ -164,5 +177,25 @@ public class CodeQualityController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(ApiResponse.success(issue));
+    }
+
+    /**
+     * 删除扫描记录
+     */
+    @DeleteMapping("/scans/{scanId}")
+    public ResponseEntity<ApiResponse<Boolean>> deleteScan(@PathVariable Long scanId) {
+        try {
+            boolean deleted = codeQualityService.deleteScan(scanId);
+            if (deleted) {
+                return ResponseEntity.ok(ApiResponse.success("扫描记录已删除", true));
+            }
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("删除失败: " + e.getMessage()));
+        }
     }
 }

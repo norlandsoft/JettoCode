@@ -4,6 +4,7 @@ import com.jettech.code.entity.CodeQualityIssue;
 import com.jettech.code.entity.CodeQualityScan;
 import com.jettech.code.mapper.CodeQualityIssueMapper;
 import com.jettech.code.mapper.CodeQualityScanMapper;
+import com.jettech.code.mapper.CodeQualityTaskMapper;
 import com.jettech.code.mapper.ServiceMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,15 +28,18 @@ public class CodeQualityService {
     private final CodeQualityIssueMapper issueMapper;
     private final ServiceMapper serviceMapper;
     private final ScanTaskManager scanTaskManager;
+    private final CodeQualityTaskMapper taskMapper;
 
     public CodeQualityService(CodeQualityScanMapper scanMapper,
                              CodeQualityIssueMapper issueMapper,
                              ServiceMapper serviceMapper,
-                             ScanTaskManager scanTaskManager) {
+                             ScanTaskManager scanTaskManager,
+                             CodeQualityTaskMapper taskMapper) {
         this.scanMapper = scanMapper;
         this.issueMapper = issueMapper;
         this.serviceMapper = serviceMapper;
         this.scanTaskManager = scanTaskManager;
+        this.taskMapper = taskMapper;
     }
 
     public List<CodeQualityScan> getScans(Long serviceId) {
@@ -72,6 +76,33 @@ public class CodeQualityService {
 
     public CodeQualityIssue getIssueById(Long issueId) {
         return issueMapper.findById(issueId);
+    }
+
+    /**
+     * 删除扫描记录及其关联数据
+     */
+    public boolean deleteScan(Long scanId) {
+        CodeQualityScan scan = scanMapper.findById(scanId);
+        if (scan == null) {
+            return false;
+        }
+
+        // 不允许删除正在进行的扫描
+        if (CodeQualityScan.STATUS_IN_PROGRESS.equals(scan.getStatus())) {
+            throw new IllegalStateException("无法删除正在进行的扫描");
+        }
+
+        // 删除关联的问题记录
+        issueMapper.deleteByScanId(scanId);
+
+        // 删除关联的任务记录
+        taskMapper.deleteByScanId(scanId);
+
+        // 删除扫描记录
+        scanMapper.deleteById(scanId);
+
+        logger.info("Deleted scan {} with all related data", scanId);
+        return true;
     }
 
     public CodeQualityScan startScan(Long serviceId) throws Exception {

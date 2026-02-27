@@ -388,7 +388,7 @@ onMounted(() => {
 }
 
 .page-header {
-  height: 72px;
+  height: 60px;
   flex-shrink: 0;
   display: flex;
   justify-content: space-between;
@@ -405,8 +405,8 @@ onMounted(() => {
 }
 
 .header-left h1 {
-  margin: 0 0 var(--spacing-xs);
-  font-size: 24px;
+  margin: 0 0 2px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--color-text-primary);
 }

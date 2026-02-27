@@ -189,7 +189,7 @@ const toggleCollapse = () => {
 
 .sidebar-header {
   width: 220px;
-  height: 72px;
+  height: 60px;
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
   position: relative;
@@ -197,15 +197,15 @@ const toggleCollapse = () => {
 
 .logo-container {
   position: absolute;
-  top: 18px;
+  top: 12px;
   left: 18px;
   display: flex;
   align-items: flex-start;
 }
 
 .logo-icon {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -220,19 +220,19 @@ const toggleCollapse = () => {
 .logo-text {
   display: flex;
   flex-direction: column;
-  margin-left: 12px;
-  margin-top: -4px;
+  margin-left: 10px;
+  margin-top: -2px;
 }
 
 .logo-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.5px;
   color: var(--color-text-primary);
 }
 
 .logo-subtitle {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--color-text-tertiary);
 }
 

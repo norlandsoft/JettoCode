@@ -13,6 +13,7 @@
     "@ant-design/icons-vue": "^7.0.1",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@fontsource/space-grotesk": "^5.2.10",
+    "@stomp/stompjs": "^7.3.0",
     "ant-design-vue": "^4.1.2",
     "axios": "^1.6.2",
     "dagre": "^0.8.5",
@@ -20,6 +21,7 @@
     "echarts": "^5.4.3",
     "monaco-editor": "^0.45.0",
     "pinia": "^2.1.7",
+    "sockjs-client": "^1.6.1",
     "vue": "^3.4.0",
     "vue-router": "^4.2.5"
   },

@@ -206,6 +206,16 @@ export const codeQualityApi = {
 
   getIssue(issueId: number) {
     return api.get<ApiResponse<CodeQualityIssue>>(`/code-quality/issues/${issueId}`)
+  },
+
+  // 取消扫描
+  cancelScan(scanId: number) {
+    return api.post<ApiResponse<boolean>>(`/code-quality/scans/${scanId}/cancel`)
+  },
+
+  // 删除扫描记录
+  deleteScan(scanId: number) {
+    return api.delete<ApiResponse<boolean>>(`/code-quality/scans/${scanId}`)
   }
 }
 
@@ -268,6 +278,71 @@ export interface QualityCheckTreeDTO {
   description: string
   sortOrder: number
   items: QualityCheckConfig[]
+}
+
+// 任务执行日志
+export interface TaskExecutionLog {
+  taskId: number
+  scanId: number
+  serviceName: string
+  checkItemKey: string
+  checkItemName: string
+  status: string
+  promptText: string | null
+  promptLength: number
+  startedAt: string | null
+  responseText: string | null
+  responseLength: number
+  completedAt: string | null
+  issueCount: number
+  severity: string
+  resultSummary: string | null
+  errorMessage: string | null
+  retryCount: number
+  opencodeSessionId: string | null
+  duration: number | null
+  formattedDuration?: string
+  statusText?: string
+}
+
+// 扫描进度消息（WebSocket）
+export interface ScanProgressMessage {
+  type: 'PHASE' | 'PROGRESS' | 'TASK_START' | 'TASK_COMPLETE' | 'COMPLETED' | 'CANCELLED' | 'ERROR'
+  scanId: number
+  taskId?: number
+  serviceName?: string
+  checkItemName?: string
+  status?: string
+  progress?: number
+  totalTasks?: number
+  completedTasks?: number
+  issueCount?: number
+  severity?: string
+  message?: string
+  timestamp: string
+}
+
+// 扫描日志 API
+export const scanLogApi = {
+  // 获取扫描的执行日志列表
+  getScanLogs(scanId: number) {
+    return api.get<ApiResponse<TaskExecutionLog[]>>(`/code-quality/logs/scans/${scanId}`)
+  },
+
+  // 获取单个任务的执行日志详情
+  getTaskLog(taskId: number) {
+    return api.get<ApiResponse<TaskExecutionLog>>(`/code-quality/logs/tasks/${taskId}`)
+  },
+
+  // 获取任务的原始提示词
+  getTaskPrompt(taskId: number) {
+    return api.get<ApiResponse<string>>(`/code-quality/logs/tasks/${taskId}/prompt`)
+  },
+
+  // 获取任务的原始响应
+  getTaskResponse(taskId: number) {
+    return api.get<ApiResponse<string>>(`/code-quality/logs/tasks/${taskId}/response`)
+  }
 }
 
 export const qualityCheckApi = {

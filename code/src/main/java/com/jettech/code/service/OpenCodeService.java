@@ -127,8 +127,12 @@ public class OpenCodeService {
         String url = baseUrl + "/session/" + sessionId + "/message";
 
         Map<String, Object> requestBody = new HashMap<>();
+
+        // model 参数应该是对象格式
         if (model != null && !model.isEmpty()) {
-            requestBody.put("model", model);
+            Map<String, String> modelObj = new HashMap<>();
+            modelObj.put("id", model);
+            requestBody.put("model", modelObj);
         }
 
         List<Map<String, String>> parts = new ArrayList<>();

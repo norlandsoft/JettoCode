@@ -208,7 +208,7 @@ onMounted(() => {
 }
 
 .detail-header {
-  height: 72px;
+  height: 60px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -232,7 +232,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .breadcrumb-item {

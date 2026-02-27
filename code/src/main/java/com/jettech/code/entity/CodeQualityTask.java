@@ -20,6 +20,7 @@ public class CodeQualityTask {
     public static final String STATUS_RUNNING = "RUNNING";
     public static final String STATUS_COMPLETED = "COMPLETED";
     public static final String STATUS_FAILED = "FAILED";
+    public static final String STATUS_CANCELLED = "CANCELLED";
 
     // 严重级别常量
     public static final String SEVERITY_NONE = "NONE";
