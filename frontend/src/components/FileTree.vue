@@ -430,7 +430,7 @@ const handleSelect = (keys: any, info: any) => {
       if (isExpanded) {
         expandedKeys.value = expandedKeys.value.filter(k => k !== node.path)
       } else {
-        expandedKeys.value.push(node.path)
+        expandedKeys.value = [...expandedKeys.value, node.path]
       }
       emit('expand', node, !isExpanded)
     }
@@ -570,7 +570,7 @@ defineExpose({
   },
   expandNode: (path: string) => {
     if (!expandedKeys.value.includes(path)) {
-      expandedKeys.value.push(path)
+      expandedKeys.value = [...expandedKeys.value, path]
     }
   },
   collapseNode: (path: string) => {
@@ -579,7 +579,7 @@ defineExpose({
   // 展开到指定节点的所有父级目录
   expandToNode: (targetPath: string) => {
     const parentPaths: string[] = []
-    
+
     const findPath = (nodes: FileNode[], currentPath: string): boolean => {
       for (const node of nodes) {
         if (node.path === targetPath) {
@@ -595,22 +595,24 @@ defineExpose({
       }
       return false
     }
-    
+
     findPath(props.treeData, '')
-    
+
     // 展开所有父级目录
+    const newKeys = [...expandedKeys.value]
     for (const path of parentPaths) {
-      if (!expandedKeys.value.includes(path)) {
-        expandedKeys.value.push(path)
+      if (!newKeys.includes(path)) {
+        newKeys.push(path)
       }
     }
+    expandedKeys.value = newKeys
   },
   // 选中并展开到指定节点
   selectAndExpandTo: (path: string) => {
     selectedKeys.value = [path]
     // 展开到目标节点
     const parentPaths: string[] = []
-    
+
     const findPath = (nodes: FileNode[]): boolean => {
       for (const node of nodes) {
         if (node.path === path) {
@@ -626,15 +628,17 @@ defineExpose({
       }
       return false
     }
-    
+
     findPath(props.treeData)
-    
+
     // 展开所有父级目录（不包括目标本身）
+    const newKeys = [...expandedKeys.value]
     for (const p of parentPaths) {
-      if (!expandedKeys.value.includes(p)) {
-        expandedKeys.value.push(p)
+      if (!newKeys.includes(p)) {
+        newKeys.push(p)
       }
     }
+    expandedKeys.value = newKeys
   },
 })
 </script>
