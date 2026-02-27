@@ -1,13 +1,12 @@
 <template>
   <a-modal
     v-model:open="visible"
-    :title="title"
     :width="width"
     :centered="false"
     :destroyOnClose="destroyOnClose"
     :maskClosable="maskClosable"
     :keyboard="keyboard"
-    :closable="closable"
+    :closable="false"
     :okText="okText"
     :cancelText="cancelText"
     :okButtonProps="okButtonProps"
@@ -19,6 +18,14 @@
     @ok="handleOk"
     @cancel="handleCancel"
   >
+    <template #title>
+      <div class="dialog-header">
+        <span class="dialog-title">{{ title }}</span>
+        <button v-if="closable" class="dialog-close-btn" @click="handleClose">
+          <CloseOutlined />
+        </button>
+      </div>
+    </template>
     <div class="dialog-content">
       <slot />
     </div>
@@ -31,6 +38,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ModalProps } from 'ant-design-vue'
+import { CloseOutlined } from '@ant-design/icons-vue'
 
 interface Props {
   open: boolean
@@ -106,6 +114,10 @@ const handleCancel = () => {
   emit('cancel')
   emit('update:open', false)
 }
+
+const handleClose = () => {
+  emit('update:open', false)
+}
 </script>
 
 <style>
@@ -150,59 +162,49 @@ const handleCancel = () => {
 .dialog-modal-wrap .ant-modal-header {
   background: var(--color-bg-secondary) !important;
   border-bottom: 1px solid var(--color-border) !important;
-  padding: 0 40px 0 20px !important;
+  padding: 0 8px !important;
   height: 40px;
   min-height: 40px;
   flex-shrink: 0;
+  display: block;
+}
+
+.dialog-header {
   display: flex;
   align-items: center;
 }
 
-.dialog-modal-wrap .ant-modal-title {
-  color: var(--color-text-primary) !important;
-  font-size: 15px !important;
-  font-weight: 600 !important;
-  line-height: 1.4;
+.dialog-title {
   flex: 1;
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* 关闭按钮 - 右上角 */
-.dialog-modal-wrap .ant-modal-close {
-  top: 6px !important;
-  right: 12px !important;
-  width: 28px !important;
-  height: 28px !important;
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-tertiary) !important;
-  background: transparent !important;
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
-  margin: 0 !important;
-  padding: 0 !important;
-  position: absolute !important;
-  transform: none !important;
-}
-
-.dialog-modal-wrap .ant-modal-close:hover {
-  color: var(--color-text-primary) !important;
-  background: var(--color-bg-tertiary) !important;
-}
-
-.dialog-modal-wrap .ant-modal-close:focus {
-  outline: none;
-}
-
-.dialog-modal-wrap .ant-modal-close .ant-modal-close-x {
+.dialog-close-btn {
   width: 28px;
   height: 28px;
-  line-height: 28px;
-  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-tertiary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  padding: 0;
+  margin-left: 8px;
+}
+
+.dialog-close-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
 }
 
 /* ========================================
@@ -221,7 +223,7 @@ const handleCancel = () => {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 16px 20px;
+  padding: 0 24px 16px 24px;
   color: var(--color-text-secondary);
   min-height: 0;
   line-height: 1.6;
@@ -246,13 +248,13 @@ const handleCancel = () => {
 }
 
 /* ========================================
-   Footer Section - 52px height
+   Footer Section - 60px height
    ======================================== */
 .dialog-modal-wrap .ant-modal-footer {
   border-top: 1px solid var(--color-border) !important;
-  padding: 10px 20px !important;
-  height: 52px;
-  min-height: 52px;
+  padding: 0 24px !important;
+  height: 60px;
+  min-height: 60px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
