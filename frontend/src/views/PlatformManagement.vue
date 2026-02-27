@@ -35,6 +35,7 @@
               :show-header="true"
               :show-search="false"
               :show-line="false"
+              :merge-single-folder="false"
               :default-expanded-keys="defaultExpandedKeys"
               @select="handleTreeSelect"
             />
@@ -580,6 +581,12 @@ onUnmounted(() => {
   background: var(--color-bg-tertiary);
 }
 
+/* 覆盖 FileTree 组件的 header 高度 */
+.check-categories :deep(.file-tree-header) {
+  height: 40px;
+  padding: 0 var(--spacing-base);
+}
+
 .check-editor {
   flex: 1;
   display: flex;
@@ -588,7 +595,8 @@ onUnmounted(() => {
 }
 
 .editor-header {
-  padding: var(--spacing-sm) var(--spacing-base);
+  height: 40px;
+  padding: 0 var(--spacing-base);
   display: flex;
   justify-content: space-between;
   align-items: center;

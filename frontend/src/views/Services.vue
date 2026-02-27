@@ -53,100 +53,68 @@
       <p>加载中...</p>
     </div>
 
-    <a-modal
+    <Dialog
       v-model:open="showEditModal"
-      :footer="null"
+      title="编辑服务"
       :width="520"
+      okText="保存"
+      cancelText="取消"
+      :confirmLoading="editing"
+      @ok="handleEdit"
       @cancel="resetEditForm"
     >
-      <template #title>
-        <div class="modal-title">
-          <EditOutlined />
-          <span>编辑服务</span>
-        </div>
-      </template>
-      
       <div class="form">
         <div class="form-group">
           <label class="form-label">
             服务名称
             <span class="required">*</span>
           </label>
-          <input 
+          <input
             v-model="editForm.name"
             type="text"
             class="form-input"
             placeholder="请输入服务名称"
           />
         </div>
-        
+
         <div class="form-group">
           <label class="form-label">
             Git 地址
             <span class="required">*</span>
           </label>
-          <input 
+          <input
             v-model="editForm.gitUrl"
             type="text"
             class="form-input"
             placeholder="https://github.com/user/repo.git"
           />
         </div>
-        
+
         <div class="form-group">
           <label class="form-label">服务描述</label>
-          <textarea 
+          <textarea
             v-model="editForm.description"
             class="form-textarea"
             placeholder="请输入服务描述"
             rows="3"
           ></textarea>
         </div>
-        
-        <div class="form-actions">
-          <button class="btn btn-secondary" @click="showEditModal = false">
-            取消
-          </button>
-          <button 
-            class="btn btn-primary" 
-            :disabled="!editForm.name || !editForm.gitUrl || editing"
-            @click="handleEdit"
-          >
-            <LoadingOutlined v-if="editing" class="animate-spin" />
-            <SaveOutlined v-else />
-            {{ editing ? '保存中...' : '保存' }}
-          </button>
-        </div>
       </div>
-    </a-modal>
+    </Dialog>
 
-    <a-modal
+    <Dialog
       v-model:open="showDeleteModal"
-      :footer="null"
+      title="确认删除"
       :width="400"
+      okText="确认删除"
+      cancelText="取消"
+      @ok="handleDelete"
     >
-      <template #title>
-        <div class="modal-title text-error">
-          <ExclamationCircleOutlined />
-          <span>确认删除</span>
-        </div>
-      </template>
-      
       <div class="confirm-content">
         <p>确定要删除服务 <strong>{{ serviceToDelete?.name }}</strong> 吗？</p>
         <p class="warning-text">此操作将同时删除该服务下的所有版本，且不可恢复</p>
-        
-        <div class="form-actions">
-          <button class="btn btn-secondary" @click="showDeleteModal = false">
-            取消
-          </button>
-          <button class="btn btn-danger" @click="handleDelete">
-            <DeleteOutlined />
-            确认删除
-          </button>
-        </div>
       </div>
-    </a-modal>
+    </Dialog>
   </div>
 </template>
 
@@ -165,6 +133,7 @@ import {
   LoadingOutlined,
   ExclamationCircleOutlined
 } from '@ant-design/icons-vue'
+import Dialog from '@/components/Dialog.vue'
 import dayjs from 'dayjs'
 
 const router = useRouter()

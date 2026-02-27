@@ -29,6 +29,11 @@
   border-color: #cb2431 !important;
 }
 
+/* 遮罩层样式 - 灰色半透明 */
+.ant-modal-mask {
+  background-color: rgba(0, 0, 0, 0.45) !important;
+}
+
 .ant-modal-content {
   background: var(--color-bg-secondary) !important;
   border: 1px solid var(--color-border);

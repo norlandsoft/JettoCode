@@ -99,167 +99,117 @@
       </div>
     </div>
 
-    <a-modal
+    <Dialog
       v-model:open="showCreateModal"
-      :footer="null"
+      title="新建版本"
       :width="520"
+      okText="创建版本"
+      cancelText="取消"
+      :confirmLoading="creating"
+      @ok="handleCreate"
       @cancel="resetForm"
     >
-      <template #title>
-        <div class="modal-title">
-          <PlusOutlined />
-          <span>新建版本</span>
-        </div>
-      </template>
-      
       <div class="form">
         <div class="form-group">
           <label class="form-label">
             版本号
             <span class="required">*</span>
           </label>
-          <input 
+          <input
             v-model="createForm.version"
             type="text"
             class="form-input"
             placeholder="例如: v1.0.0"
           />
         </div>
-        
+
         <div class="form-group">
           <label class="form-label">
             Commit ID
             <span class="required">*</span>
           </label>
-          <input 
+          <input
             v-model="createForm.commitId"
             type="text"
             class="form-input"
             placeholder="请输入 Commit ID"
           />
         </div>
-        
+
         <div class="form-group">
           <label class="form-label">版本描述</label>
-          <textarea 
+          <textarea
             v-model="createForm.description"
             class="form-textarea"
             placeholder="请输入版本描述"
             rows="3"
           ></textarea>
         </div>
-        
-        <div class="form-actions">
-          <button class="btn btn-secondary" @click="showCreateModal = false">
-            取消
-          </button>
-          <button 
-            class="btn btn-primary" 
-            :disabled="!createForm.version || !createForm.commitId || creating"
-            @click="handleCreate"
-          >
-            <LoadingOutlined v-if="creating" class="animate-spin" />
-            <PlusOutlined v-else />
-            {{ creating ? '创建中...' : '创建版本' }}
-          </button>
-        </div>
       </div>
-    </a-modal>
+    </Dialog>
 
-    <a-modal
+    <Dialog
       v-model:open="showEditModal"
-      :footer="null"
+      title="编辑版本"
       :width="520"
+      okText="保存"
+      cancelText="取消"
+      :confirmLoading="editing"
+      @ok="handleEdit"
       @cancel="resetEditForm"
     >
-      <template #title>
-        <div class="modal-title">
-          <EditOutlined />
-          <span>编辑版本</span>
-        </div>
-      </template>
-      
       <div class="form">
         <div class="form-group">
           <label class="form-label">
             版本号
             <span class="required">*</span>
           </label>
-          <input 
+          <input
             v-model="editForm.version"
             type="text"
             class="form-input"
             placeholder="例如: v1.0.0"
           />
         </div>
-        
+
         <div class="form-group">
           <label class="form-label">
             Commit ID
             <span class="required">*</span>
           </label>
-          <input 
+          <input
             v-model="editForm.commitId"
             type="text"
             class="form-input"
             placeholder="请输入 Commit ID"
           />
         </div>
-        
+
         <div class="form-group">
           <label class="form-label">版本描述</label>
-          <textarea 
+          <textarea
             v-model="editForm.description"
             class="form-textarea"
             placeholder="请输入版本描述"
             rows="3"
           ></textarea>
         </div>
-        
-        <div class="form-actions">
-          <button class="btn btn-secondary" @click="showEditModal = false">
-            取消
-          </button>
-          <button 
-            class="btn btn-primary" 
-            :disabled="!editForm.version || !editForm.commitId || editing"
-            @click="handleEdit"
-          >
-            <LoadingOutlined v-if="editing" class="animate-spin" />
-            <SaveOutlined v-else />
-            {{ editing ? '保存中...' : '保存' }}
-          </button>
-        </div>
       </div>
-    </a-modal>
+    </Dialog>
 
-    <a-modal
+    <Dialog
       v-model:open="showDeleteModal"
-      :footer="null"
+      title="确认删除"
       :width="400"
+      okText="确认删除"
+      cancelText="取消"
+      @ok="handleDelete"
     >
-      <template #title>
-        <div class="modal-title text-error">
-          <ExclamationCircleOutlined />
-          <span>确认删除</span>
-        </div>
-      </template>
-      
       <div class="confirm-content">
         <p>确定要删除版本 <strong>{{ versionToDelete?.version }}</strong> 吗？</p>
         <p class="warning-text">此操作不可恢复</p>
-        
-        <div class="form-actions">
-          <button class="btn btn-secondary" @click="showDeleteModal = false">
-            取消
-          </button>
-          <button class="btn btn-danger" @click="handleDelete">
-            <DeleteOutlined />
-            确认删除
-          </button>
-        </div>
       </div>
-    </a-modal>
+    </Dialog>
   </div>
 </template>
 
@@ -280,6 +230,7 @@ import {
   ExclamationCircleOutlined,
   SyncOutlined
 } from '@ant-design/icons-vue'
+import Dialog from '@/components/Dialog.vue'
 import dayjs from 'dayjs'
 
 const route = useRoute()

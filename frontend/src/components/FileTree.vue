@@ -174,6 +174,8 @@ interface Props {
   folderIcon?: Component
   /** Folder open icon */
   folderOpenIcon?: Component
+  /** Merge single folder into parent (compact mode) */
+  mergeSingleFolder?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -192,6 +194,7 @@ const props = withDefaults(defineProps<Props>(), {
   defaultExpandedKeys: () => [],
   defaultSelectedKeys: () => [],
   contextMenu: false,
+  mergeSingleFolder: false,
 })
 
 const emit = defineEmits<{
@@ -347,9 +350,42 @@ const filterTreeData = (nodes: FileNode[], search: string): FileNode[] => {
   return result
 }
 
+// Merge single folder into parent (compact mode)
+const mergeSingleFolderNodes = (nodes: FileNode[]): FileNode[] => {
+  if (!props.mergeSingleFolder) return nodes
+
+  return nodes.map(node => {
+    if (node.type === 'directory' && node.children && node.children.length === 1) {
+      const onlyChild = node.children[0]
+      // Only merge if the only child is also a directory
+      if (onlyChild.type === 'directory') {
+        // Recursively merge the child
+        const mergedChild = mergeSingleFolderNodes([onlyChild])[0]
+        return {
+          name: `${node.name}/${mergedChild.name}`,
+          path: mergedChild.path, // Keep the deepest path for selection
+          type: 'directory' as const,
+          children: mergedChild.children
+        }
+      }
+    }
+    // Recursively process children
+    if (node.children) {
+      return {
+        ...node,
+        children: mergeSingleFolderNodes(node.children)
+      }
+    }
+    return node
+  })
+}
+
 // Filtered tree data for display
 const filteredTreeData = computed((): NonNullable<TreeProps['treeData']> => {
-  const filtered = filterTreeData(props.treeData, searchText.value)
+  let filtered = filterTreeData(props.treeData, searchText.value)
+  if (props.mergeSingleFolder) {
+    filtered = mergeSingleFolderNodes(filtered)
+  }
   return convertToTreeData(filtered) || []
 })
 
@@ -485,6 +521,17 @@ watch(
       if (firstLevelKeys.length > 0) {
         expandedKeys.value = firstLevelKeys
       }
+    }
+  },
+  { immediate: true }
+)
+
+// Watch for defaultExpandedKeys changes from parent
+watch(
+  () => props.defaultExpandedKeys,
+  (newKeys) => {
+    if (newKeys.length > 0 && expandedKeys.value.length === 0) {
+      expandedKeys.value = [...newKeys]
     }
   },
   { immediate: true }

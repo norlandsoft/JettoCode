@@ -27,72 +27,54 @@
       <router-view :application-id="applicationId" />
     </div>
 
-    <a-modal
+    <Dialog
       v-model:open="showAddServiceModal"
-      :footer="null"
+      title="添加服务"
       :width="520"
+      okText="添加服务"
+      cancelText="取消"
+      :confirmLoading="creating"
+      @ok="handleAddService"
       @cancel="resetServiceForm"
     >
-      <template #title>
-        <div class="modal-title">
-          <PlusOutlined />
-          <span>添加服务</span>
-        </div>
-      </template>
-      
       <div class="form">
         <div class="form-group">
           <label class="form-label">
             服务名称
             <span class="required">*</span>
           </label>
-          <input 
+          <input
             v-model="serviceForm.name"
             type="text"
             class="form-input"
             placeholder="请输入服务名称"
           />
         </div>
-        
+
         <div class="form-group">
           <label class="form-label">
             Git 地址
             <span class="required">*</span>
           </label>
-          <input 
+          <input
             v-model="serviceForm.gitUrl"
             type="text"
             class="form-input"
             placeholder="https://github.com/user/repo.git"
           />
         </div>
-        
+
         <div class="form-group">
           <label class="form-label">服务描述</label>
-          <textarea 
+          <textarea
             v-model="serviceForm.description"
             class="form-textarea"
             placeholder="请输入服务描述"
             rows="3"
           ></textarea>
         </div>
-        
-        <div class="form-actions">
-          <button class="btn btn-secondary" @click="showAddServiceModal = false">
-            取消
-          </button>
-          <button 
-            class="btn btn-primary" 
-            :disabled="!serviceForm.name || !serviceForm.gitUrl || creating"
-            @click="handleAddService"
-          >
-            <LoadingOutlined v-if="creating" class="animate-spin" />
-            <PlusOutlined v-else />
-            {{ creating ? '添加中...' : '添加服务' }}
-          </button>
-        </div>
       </div>
-    </a-modal>
+    </Dialog>
   </div>
 </template>
 
@@ -106,6 +88,7 @@ import {
   PlusOutlined,
   LoadingOutlined
 } from '@ant-design/icons-vue'
+import Dialog from '@/components/Dialog.vue'
 
 const router = useRouter()
 const route = useRoute()

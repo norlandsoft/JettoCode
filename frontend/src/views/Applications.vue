@@ -98,59 +98,41 @@
       </div>
     </div>
 
-    <a-modal
+    <Dialog
       v-model:open="showCreateModal"
-      :footer="null"
+      title="新建应用"
       :width="520"
+      okText="创建应用"
+      cancelText="取消"
+      :confirmLoading="creating"
+      @ok="handleCreate"
       @cancel="resetForm"
     >
-      <template #title>
-        <div class="modal-title">
-          <PlusOutlined />
-          <span>新建应用</span>
-        </div>
-      </template>
-      
       <div class="form">
         <div class="form-group">
           <label class="form-label">
             应用名称
             <span class="required">*</span>
           </label>
-          <input 
+          <input
             v-model="createForm.name"
             type="text"
             class="form-input"
             placeholder="请输入应用名称"
           />
         </div>
-        
+
         <div class="form-group">
           <label class="form-label">应用描述</label>
-          <textarea 
+          <textarea
             v-model="createForm.description"
             class="form-textarea"
             placeholder="请输入应用描述"
             rows="3"
           ></textarea>
         </div>
-        
-        <div class="form-actions">
-          <button class="btn btn-secondary" @click="showCreateModal = false">
-            取消
-          </button>
-          <button 
-            class="btn btn-primary" 
-            :disabled="!createForm.name || creating"
-            @click="handleCreate"
-          >
-            <LoadingOutlined v-if="creating" class="animate-spin" />
-            <PlusOutlined v-else />
-            {{ creating ? '创建中...' : '创建应用' }}
-          </button>
-        </div>
       </div>
-    </a-modal>
+    </Dialog>
 
     <a-modal
       v-model:open="showEditModal"
@@ -255,6 +237,7 @@ import {
   LoadingOutlined,
   ExclamationCircleOutlined
 } from '@ant-design/icons-vue'
+import Dialog from '@/components/Dialog.vue'
 import dayjs from 'dayjs'
 
 const router = useRouter()

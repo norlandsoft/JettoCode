@@ -142,11 +142,11 @@
       </div>
     </div>
 
-    <a-modal
+    <Dialog
       v-model:open="vulnerabilityModalVisible"
       title="漏洞详情"
-      width="800px"
-      :footer="null"
+      :width="800"
+      :showFooter="false"
     >
       <div v-if="loadingVulnerabilities" class="loading-container">
         <a-spin />
@@ -191,17 +191,17 @@
           </div>
         </div>
       </div>
-    </a-modal>
+    </Dialog>
 
-    <a-modal
+    <Dialog
       v-model:open="showScanModal"
       title="选择扫描服务"
-      width="500px"
-      @ok="handleScan"
-      @cancel="cancelScan"
-      :confirmLoading="scanning"
+      :width="500"
       okText="开始扫描"
       cancelText="取消"
+      :confirmLoading="scanning"
+      @ok="handleScan"
+      @cancel="cancelScan"
     >
       <div v-if="loadingServices" class="loading-container">
         <a-spin />
@@ -218,7 +218,7 @@
           </div>
         </a-checkbox-group>
       </div>
-    </a-modal>
+    </Dialog>
   </div>
 </template>
 
@@ -228,6 +228,7 @@ import { message } from 'ant-design-vue'
 import type { Application, ServiceEntity, Dependency, Vulnerability, SecurityScan } from '@/types'
 import { applicationApi, serviceApi, supplyChainApi } from '@/api/project'
 import { ScanOutlined, LoadingOutlined, FileSearchOutlined } from '@ant-design/icons-vue'
+import Dialog from '@/components/Dialog.vue'
 
 const applications = ref<Application[]>([])
 const selectedApplicationId = ref<number | null>(null)

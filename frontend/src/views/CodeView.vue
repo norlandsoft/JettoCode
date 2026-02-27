@@ -21,6 +21,7 @@
             <FileTree
               ref="fileTreeRef"
               :tree-data="fileTree"
+              :merge-single-folder="true"
               @select="handleFileSelect"
               @expand="handleFolderExpand"
               @refresh="loadFileTree"
