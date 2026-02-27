@@ -1,7 +1,11 @@
+-- =====================================================
 -- JettoCode Database Schema
--- Three-tier structure: Application -> Service -> ServiceVersion
+-- 三层结构: Application -> Service -> ServiceVersion
+-- =====================================================
 
-DROP TABLE IF EXISTS application;
+-- =====================================================
+-- 1. 应用表
+-- =====================================================
 CREATE TABLE IF NOT EXISTS application (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -10,7 +14,9 @@ CREATE TABLE IF NOT EXISTS application (
     updated_at DATETIME NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-DROP TABLE IF EXISTS service;
+-- =====================================================
+-- 2. 服务表
+-- =====================================================
 CREATE TABLE IF NOT EXISTS service (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     application_id BIGINT NOT NULL,
@@ -26,7 +32,9 @@ CREATE TABLE IF NOT EXISTS service (
     INDEX idx_application_id (application_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-DROP TABLE IF EXISTS service_version;
+-- =====================================================
+-- 3. 服务版本表
+-- =====================================================
 CREATE TABLE IF NOT EXISTS service_version (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     service_id BIGINT NOT NULL,
@@ -38,7 +46,9 @@ CREATE TABLE IF NOT EXISTS service_version (
     INDEX idx_service_id (service_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-DROP TABLE IF EXISTS dependency;
+-- =====================================================
+-- 4. 依赖表
+-- =====================================================
 CREATE TABLE IF NOT EXISTS dependency (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     service_id BIGINT NOT NULL,
@@ -60,7 +70,9 @@ CREATE TABLE IF NOT EXISTS dependency (
     INDEX idx_license_status (license_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-DROP TABLE IF EXISTS vulnerability;
+-- =====================================================
+-- 5. 漏洞表
+-- =====================================================
 CREATE TABLE IF NOT EXISTS vulnerability (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     dependency_id BIGINT NOT NULL,
@@ -81,7 +93,9 @@ CREATE TABLE IF NOT EXISTS vulnerability (
     INDEX idx_cve_id (cve_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-DROP TABLE IF EXISTS security_scan;
+-- =====================================================
+-- 6. 安全扫描表
+-- =====================================================
 CREATE TABLE IF NOT EXISTS security_scan (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     service_id BIGINT NOT NULL,
@@ -109,7 +123,9 @@ CREATE TABLE IF NOT EXISTS security_scan (
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-DROP TABLE IF EXISTS license_rule;
+-- =====================================================
+-- 7. 许可证规则表
+-- =====================================================
 CREATE TABLE IF NOT EXISTS license_rule (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     package_pattern VARCHAR(255) NOT NULL,
@@ -119,7 +135,9 @@ CREATE TABLE IF NOT EXISTS license_rule (
     created_at DATETIME NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-DROP TABLE IF EXISTS vulnerability_cache;
+-- =====================================================
+-- 8. 漏洞缓存表
+-- =====================================================
 CREATE TABLE IF NOT EXISTS vulnerability_cache (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     package_pattern VARCHAR(255) NOT NULL,
@@ -134,7 +152,9 @@ CREATE TABLE IF NOT EXISTS vulnerability_cache (
     INDEX idx_expires_at (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-DROP TABLE IF EXISTS code_quality_scan;
+-- =====================================================
+-- 9. 代码质量扫描表
+-- =====================================================
 CREATE TABLE IF NOT EXISTS code_quality_scan (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     service_id BIGINT NOT NULL,
@@ -168,7 +188,9 @@ CREATE TABLE IF NOT EXISTS code_quality_scan (
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-DROP TABLE IF EXISTS code_quality_issue;
+-- =====================================================
+-- 10. 代码质量问题表
+-- =====================================================
 CREATE TABLE IF NOT EXISTS code_quality_issue (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     scan_id BIGINT NOT NULL,
@@ -191,8 +213,9 @@ CREATE TABLE IF NOT EXISTS code_quality_issue (
     INDEX idx_file_path (file_path(255))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 质量检查分组表
-DROP TABLE IF EXISTS quality_check_group;
+-- =====================================================
+-- 11. 质量检查分组表
+-- =====================================================
 CREATE TABLE IF NOT EXISTS quality_check_group (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     group_key VARCHAR(50) NOT NULL UNIQUE COMMENT '分组标识',
@@ -205,8 +228,9 @@ CREATE TABLE IF NOT EXISTS quality_check_group (
     INDEX idx_enabled_sort (enabled, sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='质量检查分组';
 
--- 质量检查配置表
-DROP TABLE IF EXISTS quality_check_config;
+-- =====================================================
+-- 12. 质量检查配置表
+-- =====================================================
 CREATE TABLE IF NOT EXISTS quality_check_config (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     group_id BIGINT NOT NULL COMMENT '所属分组ID',
@@ -225,8 +249,9 @@ CREATE TABLE IF NOT EXISTS quality_check_config (
     INDEX idx_group_sort (group_id, sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='质量检查配置';
 
--- 代码质量扫描任务表
-DROP TABLE IF EXISTS code_quality_task;
+-- =====================================================
+-- 13. 代码质量扫描任务表
+-- =====================================================
 CREATE TABLE IF NOT EXISTS code_quality_task (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     scan_id BIGINT NOT NULL COMMENT '父扫描ID',

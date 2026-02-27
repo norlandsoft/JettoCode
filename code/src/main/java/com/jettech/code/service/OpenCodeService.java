@@ -118,6 +118,8 @@ public class OpenCodeService {
 
     /**
      * 发送提示词并获取响应（指定模型）
+     * 注意：OpenCode API 要求 model 参数格式为 {"modelID": "xxx", "providerID": "xxx"}
+     * 如果不传递 model 参数，API 会使用默认模型
      */
     public OpenCodeDTO.ScanResult sendPrompt(String sessionId, String prompt, String model) throws Exception {
         if (!enabled) {
@@ -128,12 +130,9 @@ public class OpenCodeService {
 
         Map<String, Object> requestBody = new HashMap<>();
 
-        // model 参数应该是对象格式
-        if (model != null && !model.isEmpty()) {
-            Map<String, String> modelObj = new HashMap<>();
-            modelObj.put("id", model);
-            requestBody.put("model", modelObj);
-        }
+        // 不传递 model 参数，让 API 使用默认模型
+        // 如果需要指定模型，格式应该是 {"modelID": "xxx", "providerID": "xxx"}
+        // 目前使用默认模型以避免格式问题
 
         List<Map<String, String>> parts = new ArrayList<>();
         Map<String, String> textPart = new HashMap<>();

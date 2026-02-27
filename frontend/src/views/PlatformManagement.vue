@@ -469,7 +469,7 @@ onUnmounted(() => {
 
 .header-left h1 {
   margin: 0 0 2px;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--color-text-primary);
 }

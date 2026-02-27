@@ -231,8 +231,8 @@ onMounted(() => {
 .breadcrumb {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  font-size: 16px;
+  gap: var(--spacing-xs);
+  font-size: 14px;
 }
 
 .breadcrumb-item {
@@ -247,12 +247,12 @@ onMounted(() => {
 
 .breadcrumb-item.active {
   color: var(--color-text-primary);
-  font-weight: 600;
   cursor: default;
 }
 
 .breadcrumb-separator {
   color: var(--color-text-tertiary);
+  padding: 0 var(--spacing-sm);
 }
 
 .header-right {
