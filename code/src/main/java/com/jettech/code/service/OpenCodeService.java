@@ -1,24 +1,23 @@
 package com.jettech.code.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jettech.code.dto.OpenCodeDTO;
+import com.jettech.code.util.OpenCodeClient;
+import com.jettech.code.util.OpenCodeClient.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import jakarta.annotation.PostConstruct;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * OpenCode 服务
  * 负责与 OpenCode API 进行通信
+ * 使用 OpenCodeClient 工具类实现
  */
 @Service
 public class OpenCodeService {
@@ -43,26 +42,43 @@ public class OpenCodeService {
     @Value("${opencode.retry-interval:5000}")
     private int retryInterval;
 
-    private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;
+    private OpenCodeClient client;
 
-    public OpenCodeService(@Qualifier("openCodeRestTemplate") RestTemplate restTemplate, ObjectMapper objectMapper) {
-        this.restTemplate = restTemplate;
-        this.objectMapper = objectMapper;
+    @PostConstruct
+    public void init() {
+        Duration timeoutDuration = Duration.ofMillis(timeout);
+        this.client = OpenCodeClient.builder()
+                .baseUrl(baseUrl)
+                .timeout(timeoutDuration)
+                .build();
+
+        logger.info("[OpenCode] 服务初始化完成 - baseUrl: {}, timeout: {}ms, enabled: {}", baseUrl, timeout, enabled);
     }
 
     /**
      * 检查 OpenCode 服务是否可用
      */
     public boolean isAvailable() {
+        logger.debug("[OpenCode] 检查服务可用性...");
+
         if (!enabled) {
+            logger.warn("[OpenCode] 服务已禁用");
             return false;
         }
+
         try {
-            ResponseEntity<String> response = restTemplate.getForEntity(baseUrl + "/global/health", String.class);
-            return response.getStatusCode().is2xxSuccessful();
+            HealthStatus status = client.checkHealth();
+            boolean available = status.isHealthy();
+
+            if (available) {
+                logger.info("[OpenCode] 服务可用 - version: {}", status.getVersion());
+            } else {
+                logger.warn("[OpenCode] 服务不可用");
+            }
+
+            return available;
         } catch (Exception e) {
-            logger.debug("OpenCode service not available: {}", e.getMessage());
+            logger.error("[OpenCode] 服务检查失败: {}", e.getMessage());
             return false;
         }
     }
@@ -78,35 +94,26 @@ public class OpenCodeService {
      * 创建 OpenCode 会话（带系统提示词）
      */
     public String createSession(String title, String systemPrompt) throws Exception {
+        logger.info("[OpenCode] 创建会话 - title: {}", title);
+
         if (!enabled) {
-            throw new IllegalStateException("OpenCode service is disabled");
+            throw new IllegalStateException("[OpenCode] 服务已禁用");
         }
 
-        String url = baseUrl + "/session";
+        long startTime = System.currentTimeMillis();
 
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("title", title);
+        try {
+            String sessionId = client.createSession(title, systemPrompt);
+            long elapsed = System.currentTimeMillis() - startTime;
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+            logger.info("[OpenCode] 会话创建成功 - sessionId: {}, 耗时: {}ms", sessionId, elapsed);
+            return sessionId;
 
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-        logger.info("Creating OpenCode session: {}", title);
-
-        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
-
-        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-            JsonNode root = objectMapper.readTree(response.getBody());
-            JsonNode idNode = root.path("id");
-            if (!idNode.isMissingNode()) {
-                String sessionId = idNode.asText();
-                logger.info("Created OpenCode session: {}", sessionId);
-                return sessionId;
-            }
+        } catch (OpenCodeClient.OpenCodeException e) {
+            long elapsed = System.currentTimeMillis() - startTime;
+            logger.error("[OpenCode] 会话创建失败 - 耗时: {}ms, 错误: {}", elapsed, e.getMessage());
+            throw new Exception("创建会话失败: " + e.getMessage(), e);
         }
-
-        throw new RuntimeException("Failed to create OpenCode session: " + response.getStatusCode());
     }
 
     /**
@@ -122,54 +129,45 @@ public class OpenCodeService {
      * 如果不传递 model 参数，API 会使用默认模型
      */
     public OpenCodeDTO.ScanResult sendPrompt(String sessionId, String prompt, String model) throws Exception {
+        logger.info("[OpenCode] 发送消息 - sessionId: {}, prompt长度: {} 字符", sessionId, prompt.length());
+        logger.debug("[OpenCode] 消息内容预览: {}", truncate(prompt, 200));
+
         if (!enabled) {
-            throw new IllegalStateException("OpenCode service is disabled");
+            throw new IllegalStateException("[OpenCode] 服务已禁用");
         }
 
-        String url = baseUrl + "/session/" + sessionId + "/message";
-
-        Map<String, Object> requestBody = new HashMap<>();
-
-        // 不传递 model 参数，让 API 使用默认模型
-        // 如果需要指定模型，格式应该是 {"modelID": "xxx", "providerID": "xxx"}
-        // 目前使用默认模型以避免格式问题
-
-        List<Map<String, String>> parts = new ArrayList<>();
-        Map<String, String> textPart = new HashMap<>();
-        textPart.put("type", "text");
-        textPart.put("text", prompt);
-        parts.add(textPart);
-        requestBody.put("parts", parts);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-        logger.info("Sending prompt to session {}: {} chars", sessionId, prompt.length());
-
+        long startTime = System.currentTimeMillis();
         int retries = 0;
         Exception lastException = null;
 
         while (retries < maxRetries) {
             try {
-                ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+                MessageResult result = client.sendMessage(sessionId, prompt, null);
 
-                if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                    return parseScanResult(response.getBody());
-                }
+                long elapsed = System.currentTimeMillis() - startTime;
+                logger.info("[OpenCode] 消息响应成功 - 耗时: {}ms, tokens: {}/{}/{}",
+                        elapsed, result.getTotalTokens(), result.getInputTokens(), result.getOutputTokens());
+                logger.debug("[OpenCode] 响应内容预览: {}", truncate(result.getText(), 500));
 
-                throw new RuntimeException("Unexpected response status: " + response.getStatusCode());
-            } catch (Exception e) {
+                return convertToScanResult(result);
+
+            } catch (OpenCodeClient.OpenCodeException e) {
                 lastException = e;
                 retries++;
-                logger.warn("OpenCode prompt failed (attempt {}/{}): {}", retries, maxRetries, e.getMessage());
+
+                logger.warn("[OpenCode] 消息发送失败 (尝试 {}/{}) - 错误: {}",
+                        retries, maxRetries, e.getMessage());
 
                 if (retries < maxRetries) {
+                    logger.info("[OpenCode] 等待 {}ms 后重试...", retryInterval);
                     Thread.sleep(retryInterval);
                 }
             }
         }
+
+        // 所有重试都失败
+        long elapsed = System.currentTimeMillis() - startTime;
+        logger.error("[OpenCode] 消息发送最终失败 - 总耗时: {}ms, 重试次数: {}", elapsed, maxRetries);
 
         OpenCodeDTO.ScanResult result = new OpenCodeDTO.ScanResult();
         result.setSuccess(false);
@@ -181,65 +179,87 @@ public class OpenCodeService {
      * 发送带文件上下文的提示词
      */
     public OpenCodeDTO.ScanResult sendPromptWithFiles(String sessionId, String prompt, List<String> filePaths) throws Exception {
+        int fileCount = filePaths != null ? filePaths.size() : 0;
+        logger.info("[OpenCode] 发送带文件的消息 - sessionId: {}, 文件数: {}, prompt长度: {}",
+                sessionId, fileCount, prompt.length());
+
         if (!enabled) {
-            throw new IllegalStateException("OpenCode service is disabled");
+            throw new IllegalStateException("[OpenCode] 服务已禁用");
         }
 
-        String url = baseUrl + "/session/" + sessionId + "/message";
+        long startTime = System.currentTimeMillis();
 
-        Map<String, Object> requestBody = new HashMap<>();
-        
-        List<Map<String, String>> parts = new ArrayList<>();
+        try {
+            MessageResult result = client.sendMessageWithFiles(sessionId, prompt, filePaths);
 
-        // 添加文本提示
-        Map<String, String> textPart = new HashMap<>();
-        textPart.put("type", "text");
-        textPart.put("text", prompt);
-        parts.add(textPart);
+            long elapsed = System.currentTimeMillis() - startTime;
+            logger.info("[OpenCode] 带文件消息响应成功 - 耗时: {}ms, tokens: {}",
+                    elapsed, result.getTotalTokens());
 
-        requestBody.put("parts", parts);
+            return convertToScanResult(result);
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        } catch (OpenCodeClient.OpenCodeException e) {
+            long elapsed = System.currentTimeMillis() - startTime;
+            logger.error("[OpenCode] 带文件消息发送失败 - 耗时: {}ms, 错误: {}", elapsed, e.getMessage());
 
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-        logger.info("Sending prompt with {} files to session {}", filePaths != null ? filePaths.size() : 0, sessionId);
-
-        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
-
-        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-            return parseScanResult(response.getBody());
+            OpenCodeDTO.ScanResult scanResult = new OpenCodeDTO.ScanResult();
+            scanResult.setSuccess(false);
+            scanResult.setErrorMessage("发送失败: " + e.getMessage());
+            return scanResult;
         }
-
-        OpenCodeDTO.ScanResult result = new OpenCodeDTO.ScanResult();
-        result.setSuccess(false);
-        result.setErrorMessage("Failed to get response: " + response.getStatusCode());
-        return result;
     }
 
     /**
-     * 解析扫描结果
+     * 获取会话消息历史
      */
-    private OpenCodeDTO.ScanResult parseScanResult(String responseBody) throws Exception {
+    public List<Map<String, Object>> getSessionMessages(String sessionId) throws Exception {
+        logger.debug("[OpenCode] 获取消息历史 - sessionId: {}", sessionId);
+
+        try {
+            List<MessageInfo> messages = client.getMessageHistory(sessionId);
+
+            logger.debug("[OpenCode] 消息历史数量: {}", messages.size());
+
+            return messages.stream().map(msg -> {
+                Map<String, Object> map = new java.util.HashMap<>();
+                map.put("id", msg.getId());
+                map.put("role", msg.getRole());
+                return map;
+            }).collect(Collectors.toList());
+
+        } catch (OpenCodeClient.OpenCodeException e) {
+            logger.error("[OpenCode] 获取消息历史失败: {}", e.getMessage());
+            throw new Exception("获取消息历史失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 删除会话
+     */
+    public boolean deleteSession(String sessionId) {
+        logger.info("[OpenCode] 删除会话 - sessionId: {}", sessionId);
+
+        boolean deleted = client.deleteSession(sessionId);
+
+        if (deleted) {
+            logger.info("[OpenCode] 会话删除成功 - sessionId: {}", sessionId);
+        } else {
+            logger.warn("[OpenCode] 会话删除失败 - sessionId: {}", sessionId);
+        }
+
+        return deleted;
+    }
+
+    // ==================== 私有方法 ====================
+
+    /**
+     * 将 MessageResult 转换为 ScanResult
+     */
+    private OpenCodeDTO.ScanResult convertToScanResult(MessageResult messageResult) {
         OpenCodeDTO.ScanResult result = new OpenCodeDTO.ScanResult();
         result.setSuccess(true);
 
-        JsonNode root = objectMapper.readTree(responseBody);
-
-        // 提取响应文本
-        StringBuilder fullText = new StringBuilder();
-        JsonNode partsNode = root.path("parts");
-        if (partsNode.isArray()) {
-            for (JsonNode part : partsNode) {
-                String type = part.path("type").asText();
-                if ("text".equals(type)) {
-                    fullText.append(part.path("text").asText());
-                }
-            }
-        }
-
-        String responseText = fullText.toString();
+        String responseText = messageResult.getText();
         result.setFullResponse(responseText);
 
         // 分析结果提取问题数量和严重级别
@@ -251,7 +271,7 @@ public class OpenCodeService {
         result.setSeverity(severity);
         result.setSummary(summary);
 
-        logger.info("Scan result: {} issues, severity: {}", issueCount, severity);
+        logger.debug("[OpenCode] 结果解析 - 问题数: {}, 严重级别: {}", issueCount, severity);
 
         return result;
     }
@@ -328,43 +348,11 @@ public class OpenCodeService {
     }
 
     /**
-     * 获取会话消息历史
+     * 截断文本用于日志
      */
-    public List<Map<String, Object>> getSessionMessages(String sessionId) throws Exception {
-        String url = baseUrl + "/session/" + sessionId + "/message";
-
-        ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-
-        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-            JsonNode root = objectMapper.readTree(response.getBody());
-            List<Map<String, Object>> messages = new ArrayList<>();
-
-            if (root.isArray()) {
-                for (JsonNode message : root) {
-                    Map<String, Object> msg = new HashMap<>();
-                    msg.put("id", message.path("info").path("id").asText());
-                    msg.put("role", message.path("info").path("role").asText());
-                    messages.add(msg);
-                }
-            }
-
-            return messages;
-        }
-
-        return new ArrayList<>();
-    }
-
-    /**
-     * 删除会话
-     */
-    public boolean deleteSession(String sessionId) {
-        try {
-            String url = baseUrl + "/session/" + sessionId;
-            restTemplate.delete(url);
-            return true;
-        } catch (Exception e) {
-            logger.warn("Failed to delete session {}: {}", sessionId, e.getMessage());
-            return false;
-        }
+    private String truncate(String text, int maxLength) {
+        if (text == null) return "null";
+        if (text.length() <= maxLength) return text;
+        return text.substring(0, maxLength) + "... (共" + text.length() + "字符)";
     }
 }
